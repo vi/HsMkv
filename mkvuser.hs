@@ -5,15 +5,21 @@ import qualified Data.ByteString.Lazy.Char8
 import qualified Data.ByteString.Lazy.UTF8
 import Data.Bits
 import Data.List -- foldl1'
+import Data.Maybe -- catMaybes
 
 import System.IO
 import Text.Printf
 
 type EbmlElementID = Integer
 type EbmlElementName = String
+type TrackNumber = Integer
+type TimeCode = Double
+type TimeScale = Integer
+type Duration = Double
 
 data EbmlNumberType = ENUnsigned | ENSigned | ENUnmodified  deriving (Show, Eq, Ord)
 data EbmlElementRaw = EbmlElementRaw EbmlElementID B.ByteString deriving (Show)
+
 
 data EbmlElementType =
         ETMaster |
@@ -39,6 +45,22 @@ data EbmlElement = EbmlElement {
     eeName :: EbmlElementName,
     eeData :: EbmlElementData
     } deriving (Show)
+
+data MatroskaFrame = MatroskaFrame {
+    trackNumber :: TrackNumber,
+    timeCode :: TimeCode,
+    frameData :: B.ByteString,
+    moreLacedFrames :: Int,
+    duration :: Maybe Duration
+    -- element :: EbmlElement
+    } deriving (Show)
+
+data MatroskaEvent = 
+    TracksAvailable [EbmlElement] |
+    SegmentInfoAvailable [EbmlElement] |
+    FrameReceived MatroskaFrame |
+    DebugEvent String
+    deriving (Show)
 
 
 getElementTypeAndName :: EbmlElementID -> (EbmlElementType, EbmlElementName)
@@ -112,6 +134,8 @@ getElementTypeAndName id_  = g id_
 
     g unknown = (ETBinary, printf "%x" unknown)
 
+data MatroskaCluster = MatroskaCluster TimeCode [(B.ByteString, Maybe Duration)] deriving (Show)
+
 getMajorBit :: (Bits a) => a -> Int
 getMajorBit x
     | x == 0                 = error "getMajorBit 0?"
@@ -148,6 +172,13 @@ readBigEndianNumber signed b = ret signed
         | otherwise                     = ret False
 
 
+readXiphLacingNumber :: B.ByteString -> (Integer, B.ByteString)
+readXiphLacingNumber b = rXLN 0 b
+    where
+    rXLN accum b = case B.head b of
+        255 -> rXLN (accum+255) $ B.tail b
+        x -> ((toInteger x) + accum, B.tail b)
+
 
 readEbmlElementRaw :: B.ByteString -> (EbmlElementRaw, B.ByteString)
 readEbmlElementRaw b = ((EbmlElementRaw id_ data_), rest)
@@ -181,16 +212,70 @@ readEbmlElements b = rEE
         | consy == Nothing  = []
         | otherwise = (element_ : readEbmlElements rest_)
 
+parseMkv :: B.ByteString -> [MatroskaEvent]
+parseMkv b = result
+    where
+    root_level_elements = readEbmlElements b
+    segment = case find (\x -> eeId x == 0x18538067) root_level_elements of
+        Nothing -> error "No Segment root-level element found in the file"
+        Just x -> x
 
-parseMkv :: B.ByteString -> IO ()
-parseMkv b = (mapM (putStrLn . show) $  readEbmlElements b) >> return ()
+    getChildren (EM x) = x
+    getChildren _ = error "mkvparse.hs: Expected master element with children"
+
+    -- handle child of Segment
+    handleElement :: EbmlElement -> [MatroskaEvent]
+    handleElement x
+        | eeId x == 0x1549A966  = [SegmentInfoAvailable $ getChildren $ eeData x]
+        | eeId x == 0x1654AE6B  = [TracksAvailable $ getChildren $ eeData x]
+        | eeId x == 0x1F43B675  = handleCluster $ parseCluster x
+    handleElement x = [DebugEvent $ show x]
+
+    parseCluster :: EbmlElement -> MatroskaCluster
+    parseCluster (EbmlElement _ ETMaster _ (EM nodes)) = MatroskaCluster tc_conv frames
+        where
+        tc = case find (\x -> eeId x == 0xE7) nodes of
+            Just (EbmlElement _ _ _ (EN x)) -> x
+            _                          -> error "Cluster without a valid timecode"
+
+        tc_conv = (fromInteger tc :: Double) * 0.000000001 * 1000000
+
+        extractIfABlock :: EbmlElement -> Maybe (B.ByteString, Maybe Duration)
+        extractIfABlock (EbmlElement 0xA3 ETBinary _ (EB buf)) = Just (buf, Nothing)
+        -- Add support for blocks with duration here
+        extractIfABlock _ = Nothing
+
+        frames = catMaybes $ fmap extractIfABlock nodes
+    parseCluster _ = error "Malformed cluster"
+
+    handleCluster :: MatroskaCluster -> [MatroskaEvent]
+    handleCluster (MatroskaCluster tc frames) = concat $ fmap (handleFrame 1000000 tc) frames
+
+    handleFrame :: TimeScale -> TimeCode -> (B.ByteString, Maybe Duration) -> [MatroskaEvent]
+    handleFrame tscale segment_timecode (buf, dur) = [FrameReceived frame]
+        where
+        (track_number, rest1) = readEbmlNumber ENUnsigned buf
+        (rel_timecode, rest2) = (readBigEndianNumber True (B.take 2 rest1), B.drop 2 rest1)
+        (flags, rest3) = (readBigEndianNumber False (B.take 1 rest2), B.drop 1 rest2)
+        content = case flags .&. 0x60 of
+            0x00 -> rest3
+            _ -> rest3
+
+        timecode = segment_timecode + 0.000000001 * (fromInteger (tscale * rel_timecode)::Double)
+        frame = MatroskaFrame track_number timecode content 0 dur
+        
+
+    segmentChildren = getChildren $ eeData segment 
+    result =  concat $ fmap handleElement $ segmentChildren
+-- (mapM (putStrLn . show) $  readEbmlElements b) >> return ()
 -- printf "%x\n" $ fst (readEbmlNumber ENUnmodified b)
 -- parseMkv _ = return ()
 
 
 main :: IO ()
 main = do
-    B.readFile "q.mkv" >>= parseMkv
+    contents <- B.hGetContents System.IO.stdin
+    mapM_ putStrLn $ map show $ parseMkv contents
     -- B.readFile "q.mkv" >>= \contents -> B.writeFile "qq.mkv" contents
     {- h <- openFile "q.mkv" ReadMode
     ho <- openFile "qq.mkv" WriteMode
