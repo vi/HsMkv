@@ -9,6 +9,8 @@ import Data.Maybe -- catMaybes
 
 import System.IO
 import Text.Printf
+import Data.Char
+import Debug.Trace
 
 type EbmlElementID = Integer
 type EbmlElementName = String
@@ -62,6 +64,7 @@ data MatroskaEvent =
     DebugEvent String
     deriving (Show)
 
+data MatroskaLacingType = NoLacing | XiphLacing | FixedSizeLacing | EbmlLacing deriving (Show)
 
 getElementTypeAndName :: EbmlElementID -> (EbmlElementType, EbmlElementName)
 getElementTypeAndName id_  = g id_
@@ -180,6 +183,54 @@ readXiphLacingNumber b = rXLN 0 b
         x -> ((toInteger x) + accum, B.tail b)
 
 
+-- parse_lacing function takes the content (starting from the number of laced frames) 
+-- and return de-laced frames together with decreasing numbers of remaining frames
+-- 
+parse_lacing :: MatroskaLacingType -> B.ByteString -> [(B.ByteString, Int)]
+parse_lacing ltype buf = result
+    where
+    len = (fromIntegral $ B.length buf) :: Int
+    (num_laced_frames_i, rest1) = (readBigEndianNumber False (B.take 1 buf)+1, B.drop 1 buf)
+    num_laced_frames = case ltype of
+        NoLacing -> 1
+        _        -> fromInteger num_laced_frames_i :: Int
+    (lengths, rest2) = case ltype of
+        NoLacing -> ([len], buf)
+        XiphLacing -> readXiphLengths 0 num_laced_frames rest1
+        EbmlLacing -> readEbmlLengths True 0 0 num_laced_frames rest1
+        FixedSizeLacing -> (
+                take num_laced_frames $ repeat $ (fromIntegral $ B.length rest2) `div` num_laced_frames,
+                rest1
+                )
+
+    readXiphLengths :: Int -> Int -> B.ByteString -> ([Int], B.ByteString)
+    --                 accumulated length -> more subframes -> buffer -> (length list, data_after_lengths)
+    readXiphLengths acc 1 b = ([len - acc], b)
+    readXiphLengths acc n b = ((thislen:tail), finalrest)
+        where 
+        (tail, finalrest) = readXiphLengths (acc+thislen) (n-1) rest
+        (thislen_i, rest) = readXiphLacingNumber b
+        thislen = fromInteger thislen_i :: Int
+
+    readEbmlLengths :: Bool -> Int -> Int -> Int -> B.ByteString -> ([Int], B.ByteString)
+    --  first_subframe? -> prevous_length -> accumulated length -> more subframes -> buffer -> (length list, data_after_lengths)
+    readEbmlLengths fst prev acc 1 b = ([len - acc], b)
+    readEbmlLengths fst prev acc n b = ((thislen:tail), finalrest)
+        where 
+        nt = if fst then ENUnsigned else ENSigned
+        (thislen_i, rest) = readEbmlNumber nt b
+        thislen = (fromInteger thislen_i :: Int) + prev
+        (tail, finalrest) = readEbmlLengths False thislen (acc+thislen) (n-1) rest
+
+    subframes (len:lengths) buf more_laced_frames = head : tail
+        where
+        head = (B.take (fromIntegral len) buf, more_laced_frames)
+        tail = subframes lengths (B.drop (fromIntegral len) buf) (more_laced_frames - 1)
+    subframes [] _ _ = []
+    result = subframes lengths rest2 (num_laced_frames-1)
+
+
+
 readEbmlElementRaw :: B.ByteString -> (EbmlElementRaw, B.ByteString)
 readEbmlElementRaw b = ((EbmlElementRaw id_ data_), rest)
     where
@@ -242,7 +293,14 @@ parseMkv b = result
 
         extractIfABlock :: EbmlElement -> Maybe (B.ByteString, Maybe Duration)
         extractIfABlock (EbmlElement 0xA3 ETBinary _ (EB buf)) = Just (buf, Nothing)
-        -- Add support for blocks with duration here
+        extractIfABlock (EbmlElement 0xA0 ETMaster _ (EM subelements)) = Just (buf, duration)
+            where
+            duration =  case find (\x -> eeId x == 0x9B) subelements of
+                Just (EbmlElement _ _ _ (EN x)) -> Just ((fromInteger x) * 0.000000001 * 1000000)
+                _                               -> Nothing
+            buf = case find (\x -> eeId x == 0xA1) subelements of
+                Just (EbmlElement _ _ _ (EB x)) -> x
+                _                               -> error "A BlockGroup without Block element"
         extractIfABlock _ = Nothing
 
         frames = catMaybes $ fmap extractIfABlock nodes
@@ -252,17 +310,22 @@ parseMkv b = result
     handleCluster (MatroskaCluster tc frames) = concat $ fmap (handleFrame 1000000 tc) frames
 
     handleFrame :: TimeScale -> TimeCode -> (B.ByteString, Maybe Duration) -> [MatroskaEvent]
-    handleFrame tscale segment_timecode (buf, dur) = [FrameReceived frame]
+    handleFrame tscale segment_timecode (buf, dur) = result
         where
         (track_number, rest1) = readEbmlNumber ENUnsigned buf
         (rel_timecode, rest2) = (readBigEndianNumber True (B.take 2 rest1), B.drop 2 rest1)
         (flags, rest3) = (readBigEndianNumber False (B.take 1 rest2), B.drop 1 rest2)
-        content = case flags .&. 0x60 of
-            0x00 -> rest3
-            _ -> rest3
+        contents :: [(B.ByteString, Int)] -- subframe and number of remaining subframes in the lace
+        contents = case flags .&. 0x06 of
+            0x00 -> parse_lacing NoLacing rest3 --  equals to [(rest3, 0)]
+            0x02 -> parse_lacing XiphLacing rest3
+            0x04 -> parse_lacing FixedSizeLacing rest3
+            0x06 -> parse_lacing EbmlLacing rest3
+
 
         timecode = segment_timecode + 0.000000001 * (fromInteger (tscale * rel_timecode)::Double)
-        frame = MatroskaFrame track_number timecode content 0 dur
+        frames = (\(content, laceremaining) -> MatroskaFrame track_number timecode content laceremaining dur) `fmap` contents
+        result = FrameReceived `fmap` frames
         
 
     segmentChildren = getChildren $ eeData segment 
@@ -283,3 +346,5 @@ main = do
     hSetBuffering ho (BlockBuffering $ Just 1024)
     content <- B.hGetContents h
     B.hPutStr ho content -}
+
+s2b x = B.pack $ map (fromIntegral . ord) x
