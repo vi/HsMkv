@@ -1,3 +1,24 @@
+-- Simple hacky Matroska demuxer  
+--     (my the second Haskell project, the first published one)
+--
+-- Supported features:
+--   decoding of SimpleBlocks and BlockGroups
+--   lacing
+--
+-- Not supported features:
+--   timecode scale is hard coded to 1000000 (TODO)
+--   user-friendly format for Tracks and SegmentInfo (TODO)
+--   track timecode scale multiplier
+--   seeking, cues, chapters
+--   resyncing after errors
+--
+--   the processing speed seems to be even slower than in Python mkvparse
+--
+--  Usage: Feed lazy ByteString to parseMkv function and get lazy [MatroskaEvent].
+--    see mkvuser.hs for the example 
+
+-- License=MIT, Vitaly "_Vi" Shukela, 2012.
+
 module Mkvparse (
     parseMkv,
     MatroskaEvent(..),
@@ -70,6 +91,7 @@ data MatroskaEvent =
 
 data MatroskaLacingType = NoLacing | XiphLacing | FixedSizeLacing | EbmlLacing deriving (Show)
 
+-- To be refactored
 getElementTypeAndName :: EbmlElementID -> (EbmlElementType, EbmlElementName)
 getElementTypeAndName id_  = g id_
     where
