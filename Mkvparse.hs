@@ -1,4 +1,12 @@
-module Main where
+module Mkvparse (
+    parseMkv,
+    MatroskaEvent(..),
+    MatroskaFrame(..),
+    EbmlElement(..),
+    EbmlElementType(..),
+    EbmlElementData(..),
+    EbmlElementID, EbmlElementName, TrackNumber, TimeCode, TimeScale, Duration
+    ) where
 
 import qualified Data.ByteString.Lazy as B
 import qualified Data.ByteString.Lazy.Char8
@@ -6,11 +14,7 @@ import qualified Data.ByteString.Lazy.UTF8
 import Data.Bits
 import Data.List -- foldl1'
 import Data.Maybe -- catMaybes
-
-import System.IO
 import Text.Printf
-import Data.Char
-import Debug.Trace
 
 type EbmlElementID = Integer
 type EbmlElementName = String
@@ -330,21 +334,3 @@ parseMkv b = result
 
     segmentChildren = getChildren $ eeData segment 
     result =  concat $ fmap handleElement $ segmentChildren
--- (mapM (putStrLn . show) $  readEbmlElements b) >> return ()
--- printf "%x\n" $ fst (readEbmlNumber ENUnmodified b)
--- parseMkv _ = return ()
-
-
-main :: IO ()
-main = do
-    contents <- B.hGetContents System.IO.stdin
-    mapM_ putStrLn $ map show $ parseMkv contents
-    -- B.readFile "q.mkv" >>= \contents -> B.writeFile "qq.mkv" contents
-    {- h <- openFile "q.mkv" ReadMode
-    ho <- openFile "qq.mkv" WriteMode
-    hSetBuffering h (BlockBuffering $ Just 1024)
-    hSetBuffering ho (BlockBuffering $ Just 1024)
-    content <- B.hGetContents h
-    B.hPutStr ho content -}
-
-s2b x = B.pack $ map (fromIntegral . ord) x
