@@ -29,9 +29,9 @@ module Mkvparse (
     EbmlElementID, EbmlElementName, TrackNumber, TimeCode, TimeScale, Duration
     ) where
 
+import qualified Data.ByteString.Lazy.Char8 as C
+import qualified Data.ByteString.Lazy.UTF8 as UTF8
 import qualified Data.ByteString.Lazy as B
-import qualified Data.ByteString.Lazy.Char8
-import qualified Data.ByteString.Lazy.UTF8
 import Data.Bits
 import Data.List -- foldl1'
 import Data.Maybe -- catMaybes
@@ -91,18 +91,60 @@ data MatroskaEvent =
 
 data MatroskaLacingType = NoLacing | XiphLacing | FixedSizeLacing | EbmlLacing deriving (Show)
 
+newtype CUnsigned = CUnsigned Integer deriving (Show, Eq, Ord)
+newtype CSigned = CSigned Integer deriving (Show, Eq, Ord)
+newtype CTextAscii = CTextAscii String deriving (Show, Eq, Ord)
+newtype CTextUtf8 = CTextUtf8 String deriving (Show, Eq, Ord)
+newtype CBinary = CBinary B.ByteString deriving (Show, Eq, Ord)
+newtype CFloat = CFloat Double deriving (Show, Eq, Ord)
+newtype CMaster = CMaster [MatroskaElement] deriving (Show, Eq)
+
+instance Ord CMaster where -- lexicographical compare
+    (CMaster (a:as)) < (CMaster (b:bs)) 
+        | a == b  = (CMaster as) < (CMaster bs)
+        | a < b = True
+        | otherwise = False
+    (CMaster []) < (CMaster []) = False
+
+class ConvertableFromByteString a where
+    convertFromBytestring :: B.ByteString -> a
+
+
+data MatroskaElement = UnknownElement EbmlElementID CBinary
+    | EBML CMaster
+    | EBMLVersion CUnsigned
+    | EBMLReadVersion CUnsigned
+    | EBMLMaxIDLength CUnsigned
+    | EBMLMaxSizeLength CUnsigned
+    | DocType CTextAscii
+    | DocTypeVersion CUnsigned
+    | DocTypeReadVersion CUnsigned
+    deriving (Show, Eq, Ord)
+    
+
+type UnfilledElement = B.ByteString -> MatroskaElement
+
+getElementTypeAndName2 :: EbmlElementID -> UnfilledElement
+getElementTypeAndName2 id_ = g id_
+    where
+    g 0x1A45DFA3 = EBML . c
+    g 0x4286 = EBMLVersion . c
+    g 0x42F7 = EBMLReadVersion . c
+    g 0x42F2 = EBMLMaxIDLength . c
+    g 0x42F3 = EBMLMaxSizeLength . c
+    g 0x4282 = DocType . c
+    g 0x4287 = DocTypeVersion . c
+    g 0x4285 = DocTypeReadVersion . c
+    g _ = (UnknownElement id_) . c
+
+    c :: (ConvertableFromByteString a) => B.ByteString -> a
+    c = convertFromBytestring
+
 -- To be refactored
 getElementTypeAndName :: EbmlElementID -> (EbmlElementType, EbmlElementName)
 getElementTypeAndName id_  = g id_
     where
     g 0x1A45DFA3 = (ETMaster, "EBML")
-    g 0x4286 = (ETUnsigned, "EBMLVersion")
-    g 0x42F7 = (ETUnsigned, "EBMLReadVersion")
-    g 0x42F2 = (ETUnsigned, "EBMLMaxIDLength")
-    g 0x42F3 = (ETUnsigned, "EBMLMaxSizeLength")
-    g 0x4282 = (ETTextAscii, "DocType")
-    g 0x4287 = (ETUnsigned, "DocTypeVersion")
-    g 0x4285 = (ETUnsigned, "DocTypeReadVersion")
     g 0x18538067 = (ETMaster, "Segment")
     g 0x1549A966 = (ETMaster, "SegmentInfo")
     g 0x73A4 = (ETBinary, "SegmentUID")
@@ -256,6 +298,29 @@ parse_lacing ltype buf = result
     result = subframes lengths rest2 (num_laced_frames-1)
 
 
+readMatroskaElement :: B.ByteString -> (MatroskaElement, B.ByteString)
+readMatroskaElement b = (element, rest_)
+    where
+    (EbmlElementRaw id_ data_raw, rest_) = readEbmlElementRaw b
+    element = getElementTypeAndName2 id_ data_raw
+
+instance ConvertableFromByteString CMaster    where convertFromBytestring = CMaster . readMatroskaElements
+instance ConvertableFromByteString CBinary    where convertFromBytestring = CBinary
+instance ConvertableFromByteString CTextAscii where convertFromBytestring = CTextAscii . C.unpack
+instance ConvertableFromByteString CTextUtf8  where convertFromBytestring = CTextUtf8 . UTF8.toString
+instance ConvertableFromByteString CFloat     where convertFromBytestring = undefined -- Sorry, I don't know how to read it
+instance ConvertableFromByteString CUnsigned  where convertFromBytestring = CUnsigned . readBigEndianNumber False
+instance ConvertableFromByteString CSigned    where convertFromBytestring = CSigned . readBigEndianNumber True
+--                                                                                 Configure text editor for long lines ----
+
+readMatroskaElements :: B.ByteString -> [MatroskaElement]
+readMatroskaElements b = rEE
+    where
+    consy = B.uncons b
+    (element_, rest_) = readMatroskaElement b
+    rEE
+        | consy == Nothing  = []
+        | otherwise = (element_ : readMatroskaElements rest_)
 
 readEbmlElementRaw :: B.ByteString -> (EbmlElementRaw, B.ByteString)
 readEbmlElementRaw b = ((EbmlElementRaw id_ data_), rest)
@@ -264,6 +329,7 @@ readEbmlElementRaw b = ((EbmlElementRaw id_ data_), rest)
     (size, rest2) = readEbmlNumber ENUnsigned rest1
     data_ = B.take (fromInteger size) rest2
     rest = B.drop (fromInteger size) rest2
+
 
 readEbmlElement :: B.ByteString -> (EbmlElement, B.ByteString)
 readEbmlElement b = (EbmlElement id_ type_ name_ data_, rest_)
@@ -275,8 +341,8 @@ readEbmlElement b = (EbmlElement id_ type_ name_ data_, rest_)
     interpretData ETBinary b = EB b
     interpretData ETUnsigned b = EN $ readBigEndianNumber False b
     interpretData ETSigned b = EN $ readBigEndianNumber True b
-    interpretData ETTextAscii b = ET $ Data.ByteString.Lazy.Char8.unpack b
-    interpretData ETTextUtf8 b = ET $ Data.ByteString.Lazy.UTF8.toString b
+    interpretData ETTextAscii b = ET $ C.unpack b
+    interpretData ETTextUtf8 b = ET $ UTF8.toString b
     interpretData ETFloat b = EB b -- Sorry, I don't know how to read floats yet
     interpretData ETMaster b = EM $ readEbmlElements b
 
