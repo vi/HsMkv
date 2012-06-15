@@ -2,7 +2,7 @@ Matroska demuxer in Haskell. Feed it content of mkv file and get list of frames 
 
     parseMkv :: Data.ByteString.Lazy.ByteString -> [MatroskaEvent]
 
-    data MatroskaEvent = ME_Tracks ... | ME_Info .. | ME_Frame MatroskaFrame | ...
+    data MatroskaEvent = ME_Tracks ... | ME_Info .. | ME_Frame Frame | ...
 
     data Frame = Frame {
         f_trackNumber :: Integer,
@@ -10,6 +10,8 @@ Matroska demuxer in Haskell. Feed it content of mkv file and get list of frames 
         f_data :: [B.ByteString],  -- laced sub-frames
         f_duration :: Maybe Double
     } deriving (Show)
+    
+    -- See MkvExample.hs for more complete example
 
 Supported features:
 
