@@ -1,6 +1,6 @@
 module MkvGen where
 
-import MkvParse
+import MkvParse -- Just for data types
 import MkvTabular
 
 import Data.Bits
@@ -45,13 +45,13 @@ writeEbmlNumber ENUnmodified x = head : unsignedBigEndianNumber n' rest
     rank x = 1 + rank (x `shiftR` 1)
     
     
-matroskaElement_raw :: EbmlElementID -> Bool -> B.ByteString -> B.ByteString
-matroskaElement_raw id_ nosize content_ = B.concat [id_b, size_b, content_]
+matroskaElement_raw :: EbmlElementID -> Maybe Integer -> B.ByteString -> B.ByteString
+matroskaElement_raw id_ size' content_ = B.concat [id_b, size_b, content_]
     where
     id_b = B.pack $ writeEbmlNumber ENUnmodified id_
-    size = case nosize of
-        True -> (-1)
-        False -> toInteger $ B.length content_
+    size = case size' of
+        Just x -> x
+        Nothing -> toInteger $ B.length content_
     size_b = B.pack $ writeEbmlNumber ENUnsigned $ size
 
 
@@ -77,12 +77,11 @@ bigEndianNumber signed x = unsignedBigEndianNumber niceSize x'
 
 
 -- Convert MatroskaElement to Bytestring
--- size is ignored, unless "-1" which means "infinite" (for Segment)
+-- If size is Nothing it is auto-calculated, Use "-1" for "infinite" (for Segment)
 writeMatroskaElement :: MatroskaElement -> B.ByteString
-writeMatroskaElement (MatroskaElement kl declsize content) = 
-    matroskaElement_raw (lookupElementIdReverse kl) nosize (encodeContent content)
+writeMatroskaElement (MatroskaElement kl size content) = 
+    matroskaElement_raw (lookupElementIdReverse kl) size (encodeContent content)
     where
-    nosize = declsize == (-1)
     encodeContent (EC_Binary b) = b
     encodeContent (EC_Unsigned b) = B.pack $ bigEndianNumber False  b
     encodeContent (EC_Signed b) = B.pack $ bigEndianNumber True b
@@ -96,20 +95,22 @@ writeMatroskaElement (MatroskaElement kl declsize content) =
     
 
 ebmlHeader :: MatroskaElement
-ebmlHeader = MatroskaElement EE_EBML 0 $ EC_Master [
-     MatroskaElement EE_EBMLVersion        0 $ EC_Unsigned 1
-    ,MatroskaElement EE_EBMLReadVersion    0 $ EC_Unsigned 1
-    ,MatroskaElement EE_EBMLMaxIDLength    0 $ EC_Unsigned 4
-    ,MatroskaElement EE_EBMLMaxSizeLength  0 $ EC_Unsigned 8
-    ,MatroskaElement EE_DocType            0 $ EC_TextAscii $ T.pack "matroska"
-    ,MatroskaElement EE_DocTypeVersion     0 $ EC_Unsigned 2
-    ,MatroskaElement EE_DocTypeReadVersion 0 $ EC_Unsigned 2
+ebmlHeader = MatroskaElement EE_EBML Nothing $ EC_Master [
+     MatroskaElement EE_EBMLVersion        Nothing $ EC_Unsigned 1
+    ,MatroskaElement EE_EBMLReadVersion    Nothing $ EC_Unsigned 1
+    ,MatroskaElement EE_EBMLMaxIDLength    Nothing $ EC_Unsigned 4
+    ,MatroskaElement EE_EBMLMaxSizeLength  Nothing $ EC_Unsigned 8
+    ,MatroskaElement EE_DocType            Nothing $ EC_TextAscii $ T.pack "matroska"
+    ,MatroskaElement EE_DocTypeVersion     Nothing $ EC_Unsigned 2
+    ,MatroskaElement EE_DocTypeReadVersion Nothing $ EC_Unsigned 2
     ]
 
+
+-- Write simple streaming Matroska header
 matroskaHeader :: B.ByteString
 matroskaHeader = B.concat [
     writeMatroskaElement ebmlHeader,
-    writeMatroskaElement $ MatroskaElement EE_Segment (-1) $ EC_Binary B.empty
+    writeMatroskaElement $ MatroskaElement EE_Segment (Just (-1)) $ EC_Binary B.empty
     ]
 
 
@@ -137,13 +138,13 @@ rawFrame rel_timecode track buffers = B.concat [
 
 frameCluster :: Integer -> Frame -> MatroskaElement
 frameCluster timecode_scale frame =
-     MatroskaElement EE_Cluster 0 $ EC_Master [
-        MatroskaElement EE_Timecode 0 $ EC_Unsigned $ toMatroskaTimecode (f_timeCode frame)
+     MatroskaElement EE_Cluster Nothing $ EC_Master [
+        MatroskaElement EE_Timecode Nothing $ EC_Unsigned $ toMatroskaTimecode (f_timeCode frame)
        ,case f_duration frame of
-            Nothing -> MatroskaElement EE_SimpleBlock 0 $ EC_Binary frameData
-            Just duration -> MatroskaElement EE_BlockGroup 0 $ EC_Master [
-                 MatroskaElement EE_BlockDuration 0 $ EC_Unsigned $ toMatroskaTimecode duration
-                ,MatroskaElement EE_Block 0 $ EC_Binary frameData 
+            Nothing -> MatroskaElement EE_SimpleBlock Nothing $ EC_Binary frameData
+            Just duration -> MatroskaElement EE_BlockGroup Nothing $ EC_Master [
+                 MatroskaElement EE_BlockDuration Nothing $ EC_Unsigned $ toMatroskaTimecode duration
+                ,MatroskaElement EE_Block Nothing $ EC_Binary frameData 
                 ]
     ] where
     toMatroskaTimecode :: Double -> Integer
@@ -151,4 +152,8 @@ frameCluster timecode_scale frame =
     frameData = rawFrame 0 (f_trackNumber frame) (f_data frame)
          
     
+--trackElement :: Track -> MatroskaElement
+--trackElement track =
+--    MatroskaElement EE_TrackEntry 
+
 -- B.writeFile "g.mkv" $ B.concat [matroskaHeader, writeMatroskaElement $ frameCluster 1000000 $ Frame 1 45.4 [B.empty] (Just 2.5)]

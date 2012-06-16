@@ -17,7 +17,7 @@ import Debug.Trace
 
 demoHandler :: M.MatroskaEvent -> IO ()
 demoHandler M.ME_Resync = printf "Resync\n"
---demoHandler (M.ME_EbmlElement (M.MatroskaElement klass size content)) = printf " %s %d\n" (show klass) size
+--demoHandler (M.ME_EbmlElement (M.MatroskaElement klass (Just size) content)) = printf " %s %d\n" (show klass) size
 
 
 demoHandler (M.ME_Info inf) = let

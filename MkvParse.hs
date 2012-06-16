@@ -112,7 +112,7 @@ data MatroskaEvent =
 
 data MatroskaElement = MatroskaElement {
      me_class :: ElementClass
-    ,me_size :: Integer
+    ,me_size :: Maybe Integer
     ,me_content :: ElementContent  
     } deriving (Show, Eq)
 
@@ -249,7 +249,7 @@ tryParseEbml1 buffer = do
     element <- let 
         klass = lookupElementId id_
         type_ = lookupElementType klass
-        in liftM (MatroskaElement klass size2) $ parseElementContent type_ data_
+        in liftM (MatroskaElement klass (Just size2)) $ parseElementContent type_ data_
     new_state <- Just $ rest3
     return (element, new_state)
 
@@ -286,8 +286,8 @@ resync b = result
         True -> b
         False -> resync $ B.dropWhile dropper next
 
-isThisTopLevelElementValid :: ElementClass -> Integer -> Bool
-isThisTopLevelElementValid klass size = case klass of
+isThisTopLevelElementValid :: ElementClass -> Maybe Integer -> Bool
+isThisTopLevelElementValid klass (Just size) = case klass of
     EE_Unknown _ -> False -- Unknown top-level (or Segment or Cluster) element? resync!
     EE_CRC32 -> size < 30
     otherwise -> case lookupElementType klass of
