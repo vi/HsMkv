@@ -48,12 +48,12 @@ import MkvTabular
 
 data Info = Info {
      i_timecodeScale :: Integer
-    ,i_muxingApplication :: T.Text
-    ,i_writingApplication :: T.Text
-    ,i_duration :: Double
-    ,i_date :: Double
-    ,i_segmentUid :: T.Text
-    ,i_title :: T.Text
+    ,i_muxingApplication :: Maybe T.Text
+    ,i_writingApplication :: Maybe T.Text
+    ,i_duration :: Maybe Double
+    ,i_date :: Maybe Double
+    ,i_segmentUid :: Maybe T.Text -- hex encoded
+    ,i_title :: Maybe T.Text
 } deriving (Show)
 
 
@@ -73,18 +73,19 @@ data TrackType =
 data Track = Track {
       t_type :: TrackType
     , t_number :: Integer
-    , t_UID :: Integer
-    , t_minCache :: Integer
     , t_codecId :: T.Text
-    , t_codecPrivate :: B.ByteString
-    , t_defaultDuration :: Double
-    , t_language :: T.Text
-    , t_videoPixelWidth :: Integer
-    , t_videoPixelHeight :: Integer
-    , t_videoDisplayWidth :: Integer
-    , t_videoDisplayHeight :: Integer
-    , t_audioSamplingFrequency :: Integer
-    , t_audioChannels :: Integer
+
+    , t_UID :: Maybe Integer
+    , t_minCache :: Maybe Integer
+    , t_codecPrivate :: Maybe B.ByteString
+    , t_defaultDuration :: Maybe Double
+    , t_language :: Maybe T.Text
+    , t_videoPixelWidth :: Maybe Integer
+    , t_videoPixelHeight :: Maybe Integer
+    , t_videoDisplayWidth :: Maybe Integer
+    , t_videoDisplayHeight :: Maybe Integer
+    , t_audioSamplingFrequency :: Maybe Integer
+    , t_audioChannels :: Maybe Integer
     } deriving (Show)
 
 data Frame = Frame {
@@ -398,22 +399,22 @@ parseMkv1 state = result $ ps_mode state
         handle_info_entry :: (ParserState, Info) -> MatroskaElement -> (ParserState, Info)
         handle_info_entry (ps, i) (MatroskaElement kl  size content ) = hie2 kl content
             where
-            hie2 EE_MuxingApp (EC_TextUtf8 t)  = (ps, i{i_muxingApplication=t})
-            hie2 EE_WritingApp (EC_TextUtf8 t) = (ps, i{i_writingApplication=t})
-            hie2 EE_Duration   (EC_Float t)    = (ps, i{i_duration=t})
-            hie2 EE_SegmentUID (EC_Binary t)   = (ps, i{i_segmentUid=toHex t})
-            hie2 EE_Title (EC_TextUtf8 t)      = (ps, i{i_title=t})
+            hie2 EE_MuxingApp (EC_TextUtf8 t)  = (ps, i{i_muxingApplication=Just t})
+            hie2 EE_WritingApp (EC_TextUtf8 t) = (ps, i{i_writingApplication=Just t})
+            hie2 EE_Duration   (EC_Float t)    = (ps, i{i_duration=Just t})
+            hie2 EE_SegmentUID (EC_Binary t)   = (ps, i{i_segmentUid=Just $ toHex t})
+            hie2 EE_Title (EC_TextUtf8 t)      = (ps, i{i_title=Just t})
             hie2 EE_TimecodeScale (EC_Unsigned t) = 
                 (ps{ps_timecode_scale=t}, i{i_timecodeScale=t})
             hie2 _ _ = (ps, i)
         initial_info = Info {
              i_timecodeScale = ps_timecode_scale state
-            ,i_muxingApplication = T.empty
-            ,i_writingApplication = T.empty
-            ,i_duration = 0.0
-            ,i_date = 0.0
-            ,i_segmentUid = T.empty
-            ,i_title = T.empty
+            ,i_muxingApplication = Nothing
+            ,i_writingApplication = Nothing
+            ,i_duration = Nothing
+            ,i_date = Nothing
+            ,i_segmentUid = Nothing
+            ,i_title = Nothing
             }
         (new_state, info) = foldl' handle_info_entry (state, initial_info) entries
         
@@ -426,24 +427,24 @@ parseMkv1 state = result $ ps_mode state
         handle_track_entry i (MatroskaElement kl size content ) = hte2 kl content
             where
             hte2 EE_TrackNumber (EC_Unsigned t)  = i{t_number=t}
-            hte2 EE_TrackUID (EC_Unsigned t)  = i{t_UID=t}
+            hte2 EE_TrackUID (EC_Unsigned t)  = i{t_UID=Just t}
             hte2 EE_CodecID (EC_TextAscii t)  = i{t_codecId=t}
-            hte2 EE_CodecPrivate (EC_Binary t) = i{t_codecPrivate=t}
+            hte2 EE_CodecPrivate (EC_Binary t) = i{t_codecPrivate=Just t}
             hte2 EE_DefaultDuration (EC_Unsigned t) = 
-                i{t_defaultDuration=fromInteger t / fromInteger (ps_timecode_scale state)}
-            hte2 EE_MinCache (EC_Unsigned t)  = i{t_minCache=t}
-            hte2 EE_Language (EC_TextAscii t) = i{t_language=t}
+                i{t_defaultDuration=Just $ fromInteger t / fromInteger (ps_timecode_scale state)}
+            hte2 EE_MinCache (EC_Unsigned t)  = i{t_minCache=Just t}
+            hte2 EE_Language (EC_TextAscii t) = i{t_language=Just t}
             hte2 EE_Video (EC_Master t) = foldl' hte2_video i t
                 where
-                hte2_video j (MatroskaElement EE_PixelWidth    _ (EC_Unsigned t)) = j{t_videoPixelWidth = t}
-                hte2_video j (MatroskaElement EE_PixelHeight   _ (EC_Unsigned t)) = j{t_videoPixelHeight = t}
-                hte2_video j (MatroskaElement EE_DisplayWidth  _ (EC_Unsigned t)) = j{t_videoDisplayWidth = t}
-                hte2_video j (MatroskaElement EE_DisplayHeight _ (EC_Unsigned t)) = j{t_videoDisplayHeight = t}
+                hte2_video j (MatroskaElement EE_PixelWidth    _ (EC_Unsigned t)) = j{t_videoPixelWidth = Just t}
+                hte2_video j (MatroskaElement EE_PixelHeight   _ (EC_Unsigned t)) = j{t_videoPixelHeight = Just t}
+                hte2_video j (MatroskaElement EE_DisplayWidth  _ (EC_Unsigned t)) = j{t_videoDisplayWidth = Just t}
+                hte2_video j (MatroskaElement EE_DisplayHeight _ (EC_Unsigned t)) = j{t_videoDisplayHeight = Just t}
                 hte2_video j _ = j
             hte2 EE_Audio (EC_Master t) = foldl' hte2_audio i t
                 where
-                hte2_audio j (MatroskaElement EE_SamplingFrequency  _ (EC_Unsigned t)) = j{t_audioSamplingFrequency = t}
-                hte2_audio j (MatroskaElement EE_Channels           _ (EC_Unsigned t)) = j{t_audioChannels = t}
+                hte2_audio j (MatroskaElement EE_SamplingFrequency  _ (EC_Unsigned t)) = j{t_audioSamplingFrequency = Just t}
+                hte2_audio j (MatroskaElement EE_Channels           _ (EC_Unsigned t)) = j{t_audioChannels = Just t}
                 hte2_audio j _ = j
             hte2 EE_TrackType (EC_Unsigned t) = i{t_type = interpret_tt t}
             hte2 _ _ = i
@@ -456,19 +457,20 @@ parseMkv1 state = result $ ps_mode state
         interpret_tt 0x20 = TT_Control
         initial_track = Track {
              t_number = -1
-            ,t_UID = -1
-            ,t_codecId = T.empty
-            ,t_codecPrivate = B.empty
-            ,t_defaultDuration = -1.0
-            ,t_minCache = -1
-            ,t_language = T.empty
-            ,t_videoPixelWidth = -1
-            ,t_videoPixelHeight = -1
-            ,t_videoDisplayWidth = -1
-            ,t_videoDisplayHeight = -1
-            ,t_audioSamplingFrequency = -1
-            ,t_audioChannels = -1
             ,t_type = TT_Unknown $ -1
+            ,t_codecId = T.empty
+
+            ,t_UID = Nothing
+            ,t_codecPrivate = Nothing
+            ,t_defaultDuration = Nothing
+            ,t_minCache = Nothing
+            ,t_language = Nothing
+            ,t_videoPixelWidth = Nothing
+            ,t_videoPixelHeight = Nothing
+            ,t_videoDisplayWidth = Nothing
+            ,t_videoDisplayHeight = Nothing
+            ,t_audioSamplingFrequency = Nothing
+            ,t_audioChannels = Nothing
             }
         handle_one_track :: MatroskaElement -> Track
         handle_one_track (MatroskaElement _ _ (EC_Master x)) =

@@ -6,6 +6,7 @@ import qualified Data.ByteString.Lazy as B
 import System.IO
 import Text.Printf
 import qualified Data.Text as T
+import Control.Monad 
 import Data.Char
 import Debug.Trace
 
@@ -18,14 +19,18 @@ demoHandler :: M.MatroskaEvent -> IO ()
 demoHandler M.ME_Resync = printf "Resync\n"
 --demoHandler (M.ME_EbmlElement (M.MatroskaElement klass size content)) = printf " %s %d\n" (show klass) size
 
-demoHandler (M.ME_Info inf) =  do
-    printf "Info\n"
-    printf "  Title: %s\n"               $ T.unpack $ M.i_title inf
-    printf "  Timecode scale: %d\n"                 $ M.i_timecodeScale inf
-    printf "  Muxing application: %s\n"  $ T.unpack $ M.i_muxingApplication inf
-    printf "  Writing application: %s\n" $ T.unpack $ M.i_writingApplication inf
-    printf "  Duration: %g\n"                       $ M.i_duration inf
-    printf "  Segment UID: %s\n"         $ T.unpack $ M.i_segmentUid inf
+
+demoHandler (M.ME_Info inf) = let
+    printf_m :: (PrintfArg a) => String -> Maybe a -> IO ()
+    printf_m fmt = maybe (return ()) (printf fmt)
+    in do
+        printf   "Info\n"
+        printf_m "  Title: %s\n"               $ liftM T.unpack $ M.i_title inf
+        printf   "  Timecode scale: %d\n"                       $ M.i_timecodeScale inf
+        printf_m "  Muxing application: %s\n"  $ liftM T.unpack $ M.i_muxingApplication inf
+        printf_m "  Writing application: %s\n" $ liftM T.unpack $ M.i_writingApplication inf
+        printf_m "  Duration: %g\n"                             $ M.i_duration inf
+        printf_m "  Segment UID: %s\n"         $ liftM T.unpack $ M.i_segmentUid inf
 
 demoHandler (M.ME_Tracks tracks) = mapM_ ttt tracks
     where
@@ -34,7 +39,9 @@ demoHandler (M.ME_Tracks tracks) = mapM_ ttt tracks
         printf "Track %d\n"                    $ M.t_number t
         printf "  Type: %s\n"      $ show      $ M.t_type t
         printf "  CodecID: %s\n"   $ T.unpack  $ M.t_codecId t
-        printf "  Language: %s\n"  $ T.unpack  $ M.t_language t
+        case M.t_language t of
+            Just x -> printf "  Language: %s\n"  $ T.unpack x
+            Nothing -> return ()
 
 demoHandler (M.ME_Frame frame) = do
     printf "Frame for %d %s%s%s ts=%.06f lace=%d %s len=%d data=%s...\n" tn f_i f_d f_k ts lace dur len bufstr
