@@ -88,23 +88,26 @@ data Track = Track {
     } deriving (Show)
 
 data Frame = Frame {
-    f_trackNumber :: Integer,
-    f_timeCode :: Double,
-    f_data :: [B.ByteString],
-    f_duration :: Maybe Double
+     f_trackNumber :: Integer
+    ,f_timeCode :: Double
+    ,f_data :: [B.ByteString]
+    ,f_duration :: Maybe Double
+    ,f_invisible :: Bool
+    ,f_discardable :: Bool
+    ,f_keyframe :: Bool
 } deriving (Show)
 
 data MatroskaEvent =
-    ME_Resync |
-    ME_EbmlElement MatroskaElement |
-    ME_Info Info |
-    ME_Tracks [Track] |
     ME_Frame Frame |
+    ME_Tracks [Track] |
+    ME_Info Info |
+
+    ME_EbmlElement MatroskaElement |
+    ME_Resync |
     ME_Noop
     deriving (Show)
 
 
--- Note: "do" blocks here are for Maybe, not for IO
 
 data MatroskaElement = MatroskaElement {
      me_class :: ElementClass
@@ -140,6 +143,8 @@ data ParserState = ParserState {
 
 
 data EbmlNumberType = ENUnsigned | ENSigned | ENUnmodified  deriving (Show, Eq, Ord)
+
+-- Note: "do" blocks here are for Maybe, not for IO
 
 getMajorBit :: (Bits a) => a -> Maybe Int
 getMajorBit x
@@ -519,11 +524,17 @@ parseMkv1 state = result $ ps_mode state
             timecode = cluster_timecode + rel_timecode
             timecodeToSeconds x = (fromInteger (x*tscale)::Double)*0.000000001
             timecodeSeconds = timecodeToSeconds timecode
+            flag_discardable = testBit flags 0
+            flag_invisible   = testBit flags 3
+            flag_keyframe    = testBit flags 7
             frame = Frame {
                  f_trackNumber = track_number
                 ,f_timeCode = timecodeSeconds
                 ,f_duration = liftM timecodeToSeconds  dur
                 ,f_data = contents
+                ,f_discardable = flag_discardable
+                ,f_keyframe = flag_keyframe
+                ,f_invisible = flag_invisible
                 }
         
 

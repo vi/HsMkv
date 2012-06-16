@@ -37,7 +37,7 @@ demoHandler (M.ME_Tracks tracks) = mapM_ ttt tracks
         printf "  Language: %s\n"  $ T.unpack  $ M.t_language t
 
 demoHandler (M.ME_Frame frame) = do
-    printf "Frame for %d ts=%.06f lace=%d %s len=%d data=%s...\n" tn ts lace dur len bufstr
+    printf "Frame for %d %s%s%s ts=%.06f lace=%d %s len=%d data=%s...\n" tn f_i f_d f_k ts lace dur len bufstr
         where
         tn   =           M.f_trackNumber frame
         ts   =           M.f_timeCode frame
@@ -48,6 +48,9 @@ demoHandler (M.ME_Frame frame) = do
         dur = case M.f_duration frame of
             Nothing -> ""
             Just x -> printf "dur=%.06f" x
+        f_i = if M.f_invisible   frame then "i" else " "
+        f_d = if M.f_discardable frame then "D" else " "
+        f_k = if M.f_keyframe    frame then "K" else " "
 
 demoHandler _ = return ()
 

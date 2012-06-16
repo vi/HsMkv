@@ -24,7 +24,6 @@ Not supported features:
 
 *  track timecode scale multiplier
 *  seeking, cues, chapters
-*  frame flags [TODO]
 
 
 Python version: https://github.com/vi/mkvparse
