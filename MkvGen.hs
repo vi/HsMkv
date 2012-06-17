@@ -114,8 +114,8 @@ matroskaHeader = B.concat [
     ]
 
 
-rawFrame :: Integer -> Integer -> [B.ByteString] -> B.ByteString
-rawFrame rel_timecode track buffers = B.concat [
+rawFrame :: Integer -> Word8 -> Integer -> [B.ByteString] -> B.ByteString
+rawFrame rel_timecode additional_flags track buffers = B.concat [
      B.pack $ writeEbmlNumber ENUnsigned track
     ,B.pack $ unsignedBigEndianNumber 2 rel_timecode'
     ,B.pack [flags]
@@ -125,7 +125,8 @@ rawFrame rel_timecode track buffers = B.concat [
     rel_timecode' = case rel_timecode < 0 of
         False -> rel_timecode
         True -> rel_timecode + 0x8000
-    flags = 0x02 -- Xiph lacing
+    flags_xiph = bit 1
+    flags = flags_xiph .|. additional_flags
     n = fromIntegral (length buffers ) :: Word8
     (buffersExpectOfLast, _) = splitAt (length buffers - 1) buffers
     lengths = map B.length buffersExpectOfLast
@@ -149,11 +150,22 @@ frameCluster timecode_scale frame =
     ] where
     toMatroskaTimecode :: Double -> Integer
     toMatroskaTimecode timecode = floor $ (timecode * 1000000000.0) / (fromInteger timecode_scale)
-    frameData = rawFrame 0 (f_trackNumber frame) (f_data frame)
+    flag_maybe_keyframe    = if f_keyframe    frame then bit 7 else 0
+    flag_maybe_discardable = if f_discardable frame then bit 0 else 0
+    flag_maybe_invisible   = if f_invisible   frame then bit 3 else 0
+    additional_flags = flag_maybe_keyframe .|. flag_maybe_discardable .|. flag_maybe_invisible
+    frameData = rawFrame 0 additional_flags (f_trackNumber frame) (f_data frame)
          
     
---trackElement :: Track -> MatroskaElement
---trackElement track =
---    MatroskaElement EE_TrackEntry 
+trackElement :: Track -> MatroskaElement
+trackElement track =
+    MatroskaElement EE_TrackEntry Nothing (EC_Master $ additional_track_info : [
+         MatroskaElement EE_TrackNumber Nothing (EC_Unsigned $ t_number track)
+        ,MatroskaElement EE_TrackType Nothing (EC_Unsigned $ getTrackType $ t_type track)
+        ,MatroskaElement EE_CodecID Nothing (EC_TextAscii $ t_codecId track)
+        ])
+    where
+    additional_track_info = undefined
+    getTrackType = undefined
 
 -- B.writeFile "g.mkv" $ B.concat [matroskaHeader, writeMatroskaElement $ frameCluster 1000000 $ Frame 1 45.4 [B.empty] (Just 2.5)]
