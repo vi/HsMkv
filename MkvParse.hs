@@ -431,7 +431,7 @@ parseMkv1 state = result $ ps_mode state
             hte2 EE_CodecID (EC_TextAscii t)  = i{t_codecId=t}
             hte2 EE_CodecPrivate (EC_Binary t) = i{t_codecPrivate=Just t}
             hte2 EE_DefaultDuration (EC_Unsigned t) = 
-                i{t_defaultDuration=Just $ fromInteger t / fromInteger (ps_timecode_scale state)}
+                i{t_defaultDuration=Just $ fromInteger t / 1000000000.0}
             hte2 EE_MinCache (EC_Unsigned t)  = i{t_minCache=Just t}
             hte2 EE_Language (EC_TextAscii t) = i{t_language=Just t}
             hte2 EE_Video (EC_Master t) = foldl' hte2_video i t
