@@ -7,3 +7,7 @@ example_transmux
 out
 output.txt
 *.mkv
+dist
+cabal-dev
+*.chi
+*.chs.h
