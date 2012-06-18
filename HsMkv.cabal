@@ -8,8 +8,13 @@ maintainer:          vi0oss@gmail.com
 category:            Codec
 build-type:          Simple
 cabal-version:       >=1.8
-extra-source-files:  example_transmux.hs example_print.hs
+extra-source-files:  example_transmux.hs example_print.hs Test.hs
 library
   exposed-modules:     Codec.HsMkv.MkvParse, Codec.HsMkv.MkvTabular, Codec.HsMkv.MkvGen
   build-depends:       base ==4.5.*, bytestring ==0.9.*, data-binary-ieee754 ==0.4.*, text ==0.11.*
+
+-- Test-Suite test-HsMkv
+--    type:       exitcode-stdio-1.0
+--    main-is:    Test.hs
+--    build-depends: base ==4.5.*, bytestring ==0.9.*, data-binary-ieee754 ==0.4.*, text ==0.11.*, HUnit
   
