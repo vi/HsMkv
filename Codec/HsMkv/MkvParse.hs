@@ -276,7 +276,7 @@ resync b = result
     dropper 0x16 = False
     dropper _ = True
 
-    (_, next) = B.splitAt 4 b
+    (_, next) = B.splitAt 1 b
 
     result = case
         b == B.empty ||
