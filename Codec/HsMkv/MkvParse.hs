@@ -1,4 +1,4 @@
-module MkvParse (
+module Codec.HsMkv.MkvParse (
      parseMkv
     ,Info(..)
     ,TrackType(..)
@@ -42,7 +42,7 @@ import Data.Maybe
 import Text.Printf
 import Control.Monad
 
-import MkvTabular
+import Codec.HsMkv.MkvTabular
 
 -- Description of some events
 

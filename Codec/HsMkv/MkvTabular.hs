@@ -1,4 +1,4 @@
-module MkvTabular (
+module Codec.HsMkv.MkvTabular (
     ElementType(..),
     EbmlElementID,
     ElementClass(..),

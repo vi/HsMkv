@@ -1,4 +1,4 @@
-module MkvGen (
+module Codec.HsMkv.MkvGen (
      writeMkv
     ,writeMatroskaElement
     ,infoElement
@@ -12,8 +12,8 @@ module MkvGen (
     ,writeEbmlNumber
     )where
 
-import MkvParse -- Just for data types
-import MkvTabular
+import Codec.HsMkv.MkvParse -- Just for data types
+import Codec.HsMkv.MkvTabular
 
 import Data.Bits
 import Data.Word

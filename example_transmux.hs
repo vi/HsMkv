@@ -2,8 +2,8 @@
 
 module Main where
 
-import qualified MkvParse as M
-import qualified MkvGen as MG
+import qualified Codec.HsMkv.MkvParse as M
+import qualified Codec.HsMkv.MkvGen as MG
 import qualified Data.ByteString.Lazy as B
 import System.IO
 
