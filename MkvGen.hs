@@ -208,8 +208,9 @@ trackElement track =
         ,liftM (\x -> MatroskaElement EE_DisplayHeight   Nothing $ EC_Unsigned  x) $ t_videoDisplayHeight track
         ]
     audioElement = MatroskaElement EE_Audio Nothing $ EC_Master $ catMaybes [ Nothing
-        ,liftM (\x -> MatroskaElement EE_SamplingFrequency Nothing $ EC_Unsigned  x) $ t_audioSamplingFrequency track
-        ,liftM (\x -> MatroskaElement EE_Channels          Nothing $ EC_Unsigned  x) $ t_audioChannels track
+        ,liftM (\x -> MatroskaElement EE_SamplingFrequency       Nothing $ EC_Float x) $ t_audioSamplingFrequency track
+        ,liftM (\x -> MatroskaElement EE_OutputSamplingFrequency Nothing $ EC_Float x) $ t_audioOutputSamplingFrequency track
+        ,liftM (\x -> MatroskaElement EE_Channels                Nothing $ EC_Unsigned x) $ t_audioChannels track
         ]
     toMatroskaTimecode' x = floor (x * 1000000000.0)
 
@@ -223,7 +224,7 @@ infoElement info = MatroskaElement EE_Info Nothing $ EC_Master $
     ,liftM (\x -> MatroskaElement EE_MuxingApp       Nothing $ EC_TextUtf8  x) $ i_muxingApplication info
     ,liftM (\x -> MatroskaElement EE_WritingApp      Nothing $ EC_TextUtf8  x) $ i_writingApplication info
     ,liftM (\x -> MatroskaElement EE_Duration        Nothing $ EC_Float     x) $ i_duration info
-    ,liftM (\x -> MatroskaElement EE_WritingApp      Nothing $ EC_Date      x) $ i_date info
+    ,liftM (\x -> MatroskaElement EE_DateUTC         Nothing $ EC_Date      x) $ i_date info
     ,liftM (\x -> MatroskaElement EE_Title           Nothing $ EC_TextUtf8  x) $ i_title info
     ,liftM (\x -> MatroskaElement EE_SegmentUID      Nothing $ EC_Binary $ fromHex x) $ i_segmentUid info
     ]

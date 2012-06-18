@@ -84,7 +84,8 @@ data Track = Track {
     , t_videoPixelHeight :: Maybe Integer
     , t_videoDisplayWidth :: Maybe Integer
     , t_videoDisplayHeight :: Maybe Integer
-    , t_audioSamplingFrequency :: Maybe Integer
+    , t_audioSamplingFrequency :: Maybe Double
+    , t_audioOutputSamplingFrequency :: Maybe Double
     , t_audioChannels :: Maybe Integer
     } deriving (Show)
 
@@ -443,8 +444,12 @@ parseMkv1 state = result $ ps_mode state
                 hte2_video j _ = j
             hte2 EE_Audio (EC_Master t) = foldl' hte2_audio i t
                 where
-                hte2_audio j (MatroskaElement EE_SamplingFrequency  _ (EC_Unsigned t)) = j{t_audioSamplingFrequency = Just t}
-                hte2_audio j (MatroskaElement EE_Channels           _ (EC_Unsigned t)) = j{t_audioChannels = Just t}
+                hte2_audio j (MatroskaElement EE_SamplingFrequency  _ (EC_Float t))    
+                    = j{t_audioSamplingFrequency = Just t}
+                hte2_audio j (MatroskaElement EE_OutputSamplingFrequency _ (EC_Float t))
+                    = j{t_audioOutputSamplingFrequency = Just t}
+                hte2_audio j (MatroskaElement EE_Channels           _ (EC_Unsigned t))
+                    = j{t_audioChannels = Just t}
                 hte2_audio j _ = j
             hte2 EE_TrackType (EC_Unsigned t) = i{t_type = interpret_tt t}
             hte2 _ _ = i
@@ -470,6 +475,7 @@ parseMkv1 state = result $ ps_mode state
             ,t_videoDisplayWidth = Nothing
             ,t_videoDisplayHeight = Nothing
             ,t_audioSamplingFrequency = Nothing
+            ,t_audioOutputSamplingFrequency = Nothing
             ,t_audioChannels = Nothing
             }
         handle_one_track :: MatroskaElement -> Track
