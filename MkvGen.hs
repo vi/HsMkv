@@ -191,6 +191,7 @@ trackElement track =
     getTrackType TT_Subtitle  = 0x11
     getTrackType TT_Button    = 0x12
     getTrackType TT_Control   = 0x20
+    getTrackType (TT_Unknown t) = t
     additional_track_info = catMaybes [ Nothing
         ,liftM (\x -> MatroskaElement EE_TrackUID        Nothing $ EC_Unsigned  x) $ t_UID track
         ,liftM (\x -> MatroskaElement EE_MinCache        Nothing $ EC_Unsigned  x) $ t_minCache track
