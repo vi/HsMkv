@@ -22,7 +22,6 @@ import Control.Monad
 import Data.Char
 import Data.List 
 import qualified Data.ByteString.Lazy as B
-import qualified Data.ByteString.Lazy.Char8 as C
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as E
 import Data.Binary.IEEE754
@@ -31,34 +30,40 @@ import Data.Binary.IEEE754
 unsignedBigEndianNumber :: Int -> Integer -> [Word8]
 unsignedBigEndianNumber 0 _ = []
 unsignedBigEndianNumber 1 x = [fromInteger x]
-unsignedBigEndianNumber n x = head : tail
+unsignedBigEndianNumber n x = head1 : tail1
         where
         n' = n-1
-        head = fromInteger $ (x `shiftR` (8*n')) .&. 0xFF 
-        tail = unsignedBigEndianNumber (n-1) (x .&. (complement (0xFF `shiftL` (8*n'))))
+        head1 = fromInteger $ (x `shiftR` (8*n')) .&. 0xFF 
+        tail1 = unsignedBigEndianNumber (n-1) (x .&. (complement (0xFF `shiftL` (8*n'))))
 
+getEbmlNumberSize :: Integer -> Int
 getEbmlNumberSize x
-    | x < 2^7 - 1   =  1
+    | x < (2^(7::Int) - 1)   =  1
     | otherwise     = 1 + getEbmlNumberSize (((x+1) `shiftR` 7 - 1))
 
 writeEbmlNumber :: EbmlNumberType -> Integer -> [Word8]
 writeEbmlNumber ENUnsigned (-1) =  [255]
-writeEbmlNumber ENUnsigned x = head : unsignedBigEndianNumber n' rest
+writeEbmlNumber ENUnsigned x = head1 : unsignedBigEndianNumber n' rest
     where
     n = (getEbmlNumberSize x)
     n' = n-1
     first_byte = toInteger $ (x `shiftR` (8*n')) .&. 0xFF
-    head = fromInteger $ first_byte .|. (0x80 `shiftR` (n-1))
+    head1 = fromInteger $ first_byte .|. (0x80 `shiftR` (n-1))
     rest = x .&. (complement (0xFF `shiftL` (8*n')))
-writeEbmlNumber ENUnmodified x = head : unsignedBigEndianNumber n' rest
+writeEbmlNumber ENUnmodified x = head1 : unsignedBigEndianNumber n' rest
     where
     n' = (rank x - 7) `div` 7 
     first_byte = toInteger $ (x `shiftR` (8*n')) .&. 0xFF
-    head = fromInteger first_byte
+    head1 = fromInteger first_byte
     rest = x .&. (complement (0xFF `shiftL` (8*n')))
     rank 0 = 0 -- just in case
     rank 1 = 0
-    rank x = 1 + rank (x `shiftR` 1)
+    rank v = 1 + rank (v `shiftR` 1)
+-- quick fixed-size hack
+writeEbmlNumber ENSigned x = 0x08 : (unsignedBigEndianNumber additionalSize $ x')
+    where
+    x' = x  + (2 ^ (6 + 7 * additionalSize) - 1)
+    additionalSize = 4
     
     
 matroskaElement_raw :: EbmlElementID -> Maybe Integer -> B.ByteString -> B.ByteString
@@ -232,7 +237,7 @@ infoElement info = MatroskaElement EE_Info Nothing $ EC_Master $
     where
     fromHex = B.pack . fromHex' . T.unpack
     fromHex' :: String -> [Word8]
-    fromHex' (h:(l:tail)) = b:fromHex' tail
+    fromHex' (h:(l:tail1)) = b:fromHex' tail1
         where 
         b = (bh `shiftL` 4) .|. bl
         bh = nibble h
@@ -241,23 +246,24 @@ infoElement info = MatroskaElement EE_Info Nothing $ EC_Master $
             | '0' <= x && x <= '9' = fromIntegral $ ord(x) - ord('0')
             | 'A' <= x && x <= 'F' = fromIntegral $ ord(x) - ord('A') + 10
             | 'a' <= x && x <= 'f' = fromIntegral $ ord(x) - ord('a') + 10
+            | otherwise            = 0x00 -- bad hex nibble
     fromHex' [] = []
-    fromHex' [x] = error "Odd number of hex digits?"
+    fromHex' [_] = error "Odd number of hex digits?"
 
 
 writeMkv :: [MatroskaEvent] -> B.ByteString
 writeMkv events = B.concat (matroskaHeader:unfoldr handle (events,1000000))
     where
     handle :: ([MatroskaEvent], Integer) -> Maybe (B.ByteString, ([MatroskaEvent], Integer))
-    handle (((ME_Info info):tail), timescale) = 
-        Just (writeMatroskaElement $ infoElement $ tweak_info info, (tail, i_timecodeScale info))
-    handle ((ME_Tracks tracks):tail, timescale) = 
-        Just (writeMatroskaElement $ tracksElement tracks,          (tail, timescale))
-    handle ((ME_Frame  frame ):tail, timescale) = 
-        Just (writeMatroskaElement $ frameCluster timescale frame,  (tail, timescale))
-    handle ((_:tail), timescale) = 
-        Just (B.empty, (tail, timescale))
-    handle ([], timescale) = Nothing
+    handle (((ME_Info info):tail1), _) = 
+        Just (writeMatroskaElement $ infoElement $ tweak_info info, (tail1, i_timecodeScale info))
+    handle ((ME_Tracks tracks):tail1, timescale) = 
+        Just (writeMatroskaElement $ tracksElement tracks,          (tail1, timescale))
+    handle ((ME_Frame  frame ):tail1, timescale) = 
+        Just (writeMatroskaElement $ frameCluster timescale frame,  (tail1, timescale))
+    handle ((_:tail1), timescale) = 
+        Just (B.empty, (tail1, timescale))
+    handle ([], _) = Nothing
 
     -- Check if "muxingApplication" exists and contains "HsMkv"
     -- add/append "HsMkv" if not
@@ -267,7 +273,7 @@ writeMkv events = B.concat (matroskaHeader:unfoldr handle (events,1000000))
             Nothing -> False
             Just x -> case T.count txt_HsMkv x of
                 0 -> False
-                n -> True
+                _ -> True
         new_info = if have_MkvGen_in_muxingApp then info else
             case i_muxingApplication info of
                 Just x -> info { i_muxingApplication = Just $ T.concat [x, T.pack "; ",txt_HsMkv] }
