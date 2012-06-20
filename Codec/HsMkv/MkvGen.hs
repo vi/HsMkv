@@ -1,5 +1,6 @@
 module Codec.HsMkv.MkvGen (
      writeMkv
+    ,eventToElement
     ,writeMatroskaElement
     ,infoElement
     ,tracksElement
@@ -12,7 +13,7 @@ module Codec.HsMkv.MkvGen (
     ,writeEbmlNumber
     )where
 
-import Codec.HsMkv.MkvParse -- Just for data types
+import Codec.HsMkv.Model
 import Codec.HsMkv.MkvTabular
 
 import Data.Bits
@@ -250,6 +251,31 @@ infoElement info = MatroskaElement EE_Info Nothing $ EC_Master $
     fromHex' [] = []
     fromHex' [_] = error "Odd number of hex digits?"
 
+-- Check if "muxingApplication" exists and contains "HsMkv"
+-- add/append "HsMkv" if not
+tweak_info :: Info -> Info
+tweak_info info = new_info
+    where
+    have_MkvGen_in_muxingApp = case i_muxingApplication info of
+        Nothing -> False
+        Just x -> case T.count txt_HsMkv x of
+            0 -> False
+            _ -> True
+    new_info = if have_MkvGen_in_muxingApp then info else
+        case i_muxingApplication info of
+            Just x -> info { i_muxingApplication = Just $ T.concat [x, T.pack "; ",txt_HsMkv] }
+            Nothing -> info { i_muxingApplication = Just txt_HsMkv }
+    txt_HsMkv = T.pack "HsMkv"
+
+eventToElement :: Integer -> MatroskaEvent -> Maybe MatroskaElement
+eventToElement timescale (ME_Info info) = Just $
+    infoElement $ tweak_info $ info {i_timecodeScale=timescale}
+eventToElement _ (ME_Tracks tracks) = Just $
+    tracksElement tracks
+eventToElement timescale (ME_Frame frame) = Just $
+    frameCluster timescale frame
+eventToElement _ _ = Nothing
+    
 
 writeMkv :: [MatroskaEvent] -> B.ByteString
 writeMkv events = B.concat (matroskaHeader:unfoldr handle (events,1000000))
@@ -265,20 +291,6 @@ writeMkv events = B.concat (matroskaHeader:unfoldr handle (events,1000000))
         Just (B.empty, (tail1, timescale))
     handle ([], _) = Nothing
 
-    -- Check if "muxingApplication" exists and contains "HsMkv"
-    -- add/append "HsMkv" if not
-    tweak_info info = new_info
-        where
-        have_MkvGen_in_muxingApp = case i_muxingApplication info of
-            Nothing -> False
-            Just x -> case T.count txt_HsMkv x of
-                0 -> False
-                _ -> True
-        new_info = if have_MkvGen_in_muxingApp then info else
-            case i_muxingApplication info of
-                Just x -> info { i_muxingApplication = Just $ T.concat [x, T.pack "; ",txt_HsMkv] }
-                Nothing -> info { i_muxingApplication = Just txt_HsMkv }
-        txt_HsMkv = T.pack "HsMkv"
 
 
         

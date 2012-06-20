@@ -8,6 +8,7 @@ import Test.HUnit
 import Codec.HsMkv.MkvParse
 import Codec.HsMkv.MkvGen
 import Codec.HsMkv.MkvTabular
+import Codec.HsMkv.Model
 
 -- getMajorBitTests = TestCase $ do
 --    assertEqual "0"  Nothing  $ getMajorBit (0    :: Int) 
