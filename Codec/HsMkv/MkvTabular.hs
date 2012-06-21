@@ -20,7 +20,7 @@ data ElementType =
         ETDate |
         ETFlatten |
         ETUnknown
-        deriving (Show, Eq, Ord)
+        deriving (Show, Eq, Ord, Read)
 
 lookupElementId        :: EbmlElementID -> ElementClass
 lookupElementIdReverse :: ElementClass -> EbmlElementID
@@ -244,7 +244,7 @@ data ElementClass =
     EETagString |
     EETagBinary |
     EEUnknown EbmlElementID
-    deriving (Show, Eq, Ord)
+    deriving (Show, Eq, Ord, Read)
 
 lookupElementIdReverse EEEBML = 0x1A45DFA3
 lookupElementIdReverse EEEBMLVersion = 0x00004286

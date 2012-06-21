@@ -27,7 +27,7 @@ data Info = Info {
     ,iDate :: Maybe Double
     ,iSegmentUid :: Maybe T.Text -- hex encoded
     ,iTitle :: Maybe T.Text
-} deriving (Show)
+} deriving (Show, Eq, Read)
 
 blankInfo :: Info
 blankInfo = Info 1000000 Nothing Nothing Nothing Nothing Nothing Nothing
@@ -63,7 +63,7 @@ data Track = Track {
     , tAudioSamplingFrequency :: Maybe Double
     , tAudioOutputSamplingFrequency :: Maybe Double
     , tAudioChannels :: Maybe Integer
-    } deriving (Show)
+    } deriving (Show, Eq, Read)
 
 blankTrack :: Track
 blankTrack = Track (TTUnknown (-1)) (-1) T.empty Nothing Nothing Nothing Nothing 
@@ -77,7 +77,7 @@ data Frame = Frame {
     ,fInvisible :: Bool
     ,fDiscardable :: Bool
     ,fKeyframe :: Bool
-} deriving (Show)
+} deriving (Show, Eq, Read)
 
 blankFrame :: Frame
 blankFrame = Frame (-1) (-1.0) [] Nothing False False False
@@ -90,7 +90,7 @@ data MatroskaEvent =
     MEEbmlElement MatroskaElement |
     MEResync |
     MENoop
-    deriving (Show)
+    deriving (Show, Read, Eq)
 
 
 
@@ -98,7 +98,7 @@ data MatroskaElement = MatroskaElement {
      meClass :: ElementClass
     ,meSize :: Maybe Integer
     ,meContent :: ElementContent  
-    } deriving (Show, Eq)
+    } deriving (Show, Eq, Read)
 
 data ElementContent = 
         ECMaster [MatroskaElement] |
@@ -109,12 +109,12 @@ data ElementContent =
         ECBinary B.ByteString |
         ECFloat Double |
         ECDate Double
-        deriving (Show, Eq)
+        deriving (Show, Eq, Read)
 
 
 -- State of the parsing. 
 -- There can be nested ParserStates when parsing child elements.
 
-data MatroskaLacingType = NoLacing | XiphLacing | FixedSizeLacing | EbmlLacing deriving (Show)
+data MatroskaLacingType = NoLacing | XiphLacing | FixedSizeLacing | EbmlLacing deriving (Show, Eq, Ord, Read)
 
-data EbmlNumberType = ENUnsigned | ENSigned | ENUnmodified  deriving (Show, Eq, Ord)
+data EbmlNumberType = ENUnsigned | ENSigned | ENUnmodified  deriving (Show, Eq, Ord, Read)
