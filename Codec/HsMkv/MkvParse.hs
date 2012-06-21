@@ -61,13 +61,13 @@ readEbmlNumber :: EbmlNumberType -> B.ByteString -> Maybe (Integer, B.ByteString
 readEbmlNumber ENUnmodified b = do
     (head1, tail1) <- B.uncons b
     additionalSize <- getMajorBit head1
-    renStage2 additionalSize (toInteger head1) tail1
+    renStage2 additionalSize (fromIntegral head1) tail1
         where
         renStage2 :: Int -> Integer -> B.ByteString -> Maybe (Integer, B.ByteString)
         renStage2 0 x rest = Just (x, rest)
         renStage2 n x rest = do
             (head2, tail2) <- B.uncons rest
-            renStage2 (n-1) (shiftL x 8 .|. toInteger head2) tail2
+            renStage2 (n-1) (shiftL x 8 .|. fromIntegral head2) tail2
 
 readEbmlNumber ENUnsigned b = do
     (head1, _) <- B.uncons b
@@ -88,7 +88,7 @@ readBigEndianNumber signed b = do
     (head1, _) <- B.uncons b -- just check that it is not empty
     return $ ret signed head1
     where
-    ret False _ = foldl1' (\x y -> shiftL x 8 .|. y) $ fmap toInteger $ B.unpack b
+    ret False _ = foldl1' (\x y -> shiftL x 8 .|. y) $ fmap fromIntegral $ B.unpack b
     ret True head1
         | head1 .&. 0x80 == 0x80    = ret False undefined - 2^(8*B.length b)
         | otherwise                = ret False undefined
@@ -103,7 +103,7 @@ readXiphLacingNumber b = do
     rXLN accum 255 tail1 = do
         (head2, tail2) <- B.uncons tail1 
         rXLN (accum+255) head2 tail2
-    rXLN accum x tail1 = Just (toInteger x + accum, tail1)
+    rXLN accum x tail1 = Just (fromIntegral x + accum, tail1)
 
 
 {-
@@ -116,15 +116,15 @@ lazyBytestringToNormalBytestring :: B.ByteString -> Data.ByteString.ByteString
 lazyBytestringToNormalBytestring = Data.ByteString.Char8.concat . B.toChunks
 
 fromMatroskaDate :: Integer -> Double
-fromMatroskaDate x = fromInteger x / 1000000000.0 + 978300000
+fromMatroskaDate x = fromIntegral x / 1000000000.0 + 978300000
 -- 2001-01-01T00:00:00,000000000
 
 interpretFloat :: B.ByteString -> Maybe Double
 interpretFloat b = do
     num <- readBigEndianNumber False b
     case B.length b of
-        4 -> Just $ fromRational $ toRational $ Data.Binary.IEEE754.wordToFloat (fromInteger num)
-        8 -> Just                             $ Data.Binary.IEEE754.wordToDouble (fromInteger num)
+        4 -> Just $ fromRational $ toRational $ Data.Binary.IEEE754.wordToFloat (fromIntegral num)
+        8 -> Just                             $ Data.Binary.IEEE754.wordToDouble (fromIntegral num)
         _ -> Nothing
         
 
@@ -147,7 +147,7 @@ tryParseEbml1 buffer = do
     (id_,   rest1) <- readEbmlNumber ENUnmodified buffer
     (size, rest2) <- readEbmlNumber ENUnsigned rest1
     let size2 = if lookupElementType (lookupElementId id_) == ETFlatten then 0 else size
-    let (data_, rest3) = B.splitAt (fromInteger size2) rest2
+    let (data_, rest3) = B.splitAt (fromIntegral size2) rest2
     element <- let 
         klass = lookupElementId id_
         type_ = lookupElementType klass
@@ -214,7 +214,7 @@ toHex1 x = [highChar, lowChar]
     lowChar = toHexNibble low
 
 toHex :: B.ByteString -> T.Text
-toHex = T.pack . concatMap (toHex1 . fromInteger . toInteger) . B.unpack
+toHex = T.pack . concatMap (toHex1 . fromIntegral . fromIntegral) . B.unpack
     
 ebmlChildren :: MatroskaElement -> [MatroskaElement]
 ebmlChildren (MatroskaElement _ _ (ECMaster ret)) = ret
@@ -231,7 +231,7 @@ parseLacing ltype buf = result
     (num_laced_frames_i, rest1) = (fromJust (readBigEndianNumber False (B.take 1 buf))+1, B.drop 1 buf)
     num_laced_frames = case ltype of
         NoLacing -> 1
-        _        -> fromInteger num_laced_frames_i :: Int
+        _        -> fromIntegral num_laced_frames_i :: Int
     (lengths, rest2) = case ltype of
         NoLacing -> ([len], buf)
         XiphLacing -> readXiphLengths 0 num_laced_frames rest1
@@ -248,7 +248,7 @@ parseLacing ltype buf = result
         where 
         (tail1, finalrest) = readXiphLengths (acc+thislen) (n-1) rest
         (thislen_i, rest) = fromJust $ readXiphLacingNumber b
-        thislen = fromInteger thislen_i :: Int
+        thislen = fromIntegral thislen_i :: Int
 
     readEbmlLengths :: Bool -> Int -> Int -> Int -> B.ByteString -> ([Int], B.ByteString)
     --                 first_subframe? -> prevous_length -> accumulated length -> more subframes -> buffer -> (length list, data_after_lengths)
@@ -257,7 +257,7 @@ parseLacing ltype buf = result
         where 
         number_type = if is_first then ENUnsigned else ENSigned
         (thislen_i, rest) = fromJust $ readEbmlNumber number_type b
-        thislen = (fromInteger thislen_i :: Int) + prev
+        thislen = (fromIntegral thislen_i :: Int) + prev
         (tail1, finalrest) = readEbmlLengths False thislen (acc+thislen) (n-1) rest
 
     subframes (len_:lengths2) buf2 more_laced_frames = head1 : tail1
@@ -335,7 +335,7 @@ parseMkv1 state = result $ psMode state
             hte2 EECodecID (ECTextAscii t)  = i{tCodecId=t}
             hte2 EECodecPrivate (ECBinary t) = i{tCodecPrivate=Just t}
             hte2 EEDefaultDuration (ECUnsigned t) = 
-                i{tDefaultDuration=Just $ fromInteger t / 1000000000.0}
+                i{tDefaultDuration=Just $ fromIntegral t / 1000000000.0}
             hte2 EEMinCache (ECUnsigned t)  = i{tMinCache=Just t}
             hte2 EELanguage (ECTextAscii t) = i{tLanguage=Just t}
             hte2 EEVideo (ECMaster t) = foldl' hte2_video i t
@@ -435,7 +435,7 @@ parseMkv1 state = result $ psMode state
             tscale           = psTimecodeScale state
             cluster_timecode = psTimecode state
             timecode = cluster_timecode + rel_timecode
-            timecodeToSeconds x = (fromInteger (x*tscale)::Double)*0.000000001
+            timecodeToSeconds x = (fromIntegral (x*tscale)::Double)*0.000000001
             timecodeSeconds = timecodeToSeconds timecode
             flag_discardable = testBit flags 0
             flag_invisible   = testBit flags 3

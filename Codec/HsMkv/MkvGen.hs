@@ -30,11 +30,11 @@ import Data.Binary.IEEE754
 
 unsignedBigEndianNumber :: Int -> Integer -> [Word8]
 unsignedBigEndianNumber 0 _ = []
-unsignedBigEndianNumber 1 x = [fromInteger x]
+unsignedBigEndianNumber 1 x = [fromIntegral x]
 unsignedBigEndianNumber n x = head1 : tail1
         where
         n' = n-1
-        head1 = fromInteger $ (x `shiftR` (8*n')) .&. 0xFF 
+        head1 = fromIntegral $ (x `shiftR` (8*n')) .&. 0xFF 
         tail1 = unsignedBigEndianNumber (n-1) (x .&. complement (0xFF `shiftL` (8*n')))
 
 getEbmlNumberSize :: Integer -> Int
@@ -48,14 +48,14 @@ writeEbmlNumber ENUnsigned x = head1 : unsignedBigEndianNumber n' rest
     where
     n = getEbmlNumberSize x
     n' = n-1
-    first_byte = toInteger $ (x `shiftR` (8*n')) .&. 0xFF
-    head1 = fromInteger $ first_byte .|. (0x80 `shiftR` (n-1))
+    first_byte = fromIntegral $ (x `shiftR` (8*n')) .&. 0xFF
+    head1 = first_byte .|. (0x80 `shiftR` (n-1))
     rest = x .&. complement (0xFF `shiftL` (8*n'))
 writeEbmlNumber ENUnmodified x = head1 : unsignedBigEndianNumber n' rest
     where
     n' = (rank x - 7) `div` 7 
-    first_byte = toInteger $ (x `shiftR` (8*n')) .&. 0xFF
-    head1 = fromInteger first_byte
+    first_byte = fromIntegral $ (x `shiftR` (8*n')) .&. 0xFF
+    head1 = first_byte
     rest = x .&. complement (0xFF `shiftL` (8*n'))
     rank 0 = 0 -- just in case
     rank 1 = 0
@@ -71,7 +71,7 @@ matroskaElementRaw :: EbmlElementID -> Maybe Integer -> B.ByteString -> B.ByteSt
 matroskaElementRaw id_ size' content_ = B.concat [id_b, size_b, content_]
     where
     id_b = B.pack $ writeEbmlNumber ENUnmodified id_
-    size = fromMaybe (toInteger $ B.length content_) size'
+    size = fromMaybe (fromIntegral $ B.length content_) size'
     size_b = B.pack $ writeEbmlNumber ENUnsigned size
 
 
@@ -105,7 +105,7 @@ writeMatroskaElement (MatroskaElement kl size content) =
     encodeContent (ECDate b ) = B.pack $ writeEbmlNumber ENUnsigned $ toMatroskaDate b
     encodeContent (ECTextAscii b) = B.fromChunks [E.encodeUtf8 b]
     encodeContent (ECTextUtf8 b) = B.fromChunks [E.encodeUtf8 b]
-    encodeContent (ECFloat b) =  B.pack $ unsignedBigEndianNumber 8 $ toInteger $ Data.Binary.IEEE754.doubleToWord b
+    encodeContent (ECFloat b) =  B.pack $ unsignedBigEndianNumber 8 $ fromIntegral $ Data.Binary.IEEE754.doubleToWord b
     encodeContent (ECMaster b) = B.concat $ map writeMatroskaElement b
 
     
@@ -155,7 +155,7 @@ rawFrame rel_timecode additional_flags track buffers = B.concat [
 
 
 toMatroskaTimecode :: Integer -> Double -> Integer
-toMatroskaTimecode timecode_scale timecode = floor $ (timecode * 1000000000.0) / fromInteger timecode_scale
+toMatroskaTimecode timecode_scale timecode = floor $ (timecode * 1000000000.0) / fromIntegral timecode_scale
 
 frameCluster :: Integer -> Frame -> MatroskaElement
 frameCluster timecode_scale frame =
