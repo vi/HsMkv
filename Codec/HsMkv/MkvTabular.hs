@@ -7,7 +7,9 @@ module Codec.HsMkv.MkvTabular (
     lookupElementType
     )where
 
-type EbmlElementID = Integer
+import Data.Int
+
+type EbmlElementID = Int64
 
 data ElementType =
         ETMaster |

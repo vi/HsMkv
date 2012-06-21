@@ -23,10 +23,11 @@ import Text.Printf
 import System.IO
 import Control.Concurrent (threadDelay) 
 import Data.Time.Clock.POSIX
+import Data.Int
 
 convertByteString = BN.concat . B.toChunks
 
-udpSendHandlerHandler :: Double -> Integer -> Socket -> SockAddr -> (Maybe Double, [M.MatroskaEvent]) -> Maybe (IO (), (Maybe Double, [M.MatroskaEvent]))
+udpSendHandlerHandler :: Double -> Int64 -> Socket -> SockAddr -> (Maybe Double, [M.MatroskaEvent]) -> Maybe (IO (), (Maybe Double, [M.MatroskaEvent]))
 udpSendHandlerHandler initial_time track sock addr = h
     where
     h (tb, M.MEResync:tail1) = Just (printf "Resync\n", (tb, tail1))
@@ -68,7 +69,7 @@ mainUdpSend args =
         then printf "Usage: example_udp_send track_number host port < matroska_file.mkv\n"
         else withSocketsDo $ do
             let (track_s: hostname_s: port_s:tail1) = args
-            let (track, hostname, port) = (read track_s :: Integer, hostname_s, read port_s)
+            let (track, hostname, port) = (read track_s :: Int64, hostname_s, read port_s)
             sock <- socket AF_INET Datagram 0
             host <- getHostByName hostname
             let port' =  fromIntegral port :: PortNumber

@@ -26,9 +26,10 @@ import qualified Data.ByteString.Lazy as B
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as E
 import Data.Binary.IEEE754
+import Data.Int
 
 
-unsignedBigEndianNumber :: Int -> Integer -> [Word8]
+unsignedBigEndianNumber :: Int -> Int64 -> [Word8]
 unsignedBigEndianNumber 0 _ = []
 unsignedBigEndianNumber 1 x = [fromIntegral x]
 unsignedBigEndianNumber n x = head1 : tail1
@@ -37,12 +38,12 @@ unsignedBigEndianNumber n x = head1 : tail1
         head1 = fromIntegral $ (x `shiftR` (8*n')) .&. 0xFF 
         tail1 = unsignedBigEndianNumber (n-1) (x .&. complement (0xFF `shiftL` (8*n')))
 
-getEbmlNumberSize :: Integer -> Int
+getEbmlNumberSize :: Int64 -> Int
 getEbmlNumberSize x
     | x < (2^(7::Int) - 1)   =  1
     | otherwise     = 1 + getEbmlNumberSize ((x+1) `shiftR` 7 - 1)
 
-writeEbmlNumber :: EbmlNumberType -> Integer -> [Word8]
+writeEbmlNumber :: EbmlNumberType -> Int64 -> [Word8]
 writeEbmlNumber ENUnsigned (-1) =  [255]
 writeEbmlNumber ENUnsigned x = head1 : unsignedBigEndianNumber n' rest
     where
@@ -67,7 +68,7 @@ writeEbmlNumber ENSigned x = 0x08 : unsignedBigEndianNumber additionalSize x'
     additionalSize = 4
     
     
-matroskaElementRaw :: EbmlElementID -> Maybe Integer -> B.ByteString -> B.ByteString
+matroskaElementRaw :: EbmlElementID -> Maybe Int64 -> B.ByteString -> B.ByteString
 matroskaElementRaw id_ size' content_ = B.concat [id_b, size_b, content_]
     where
     id_b = B.pack $ writeEbmlNumber ENUnmodified id_
@@ -75,16 +76,16 @@ matroskaElementRaw id_ size' content_ = B.concat [id_b, size_b, content_]
     size_b = B.pack $ writeEbmlNumber ENUnsigned size
 
 
-toMatroskaDate :: Double -> Integer
+toMatroskaDate :: Double -> Int64
 toMatroskaDate x = floor ((x - 978300000.0) * 1000000000.0)
 -- 2001-01-01T00:00:00,000000000
 
-niceNumberSize :: Integer -> Int
+niceNumberSize :: Int64 -> Int
 niceNumberSize x
     | x > (-129) && x < 128   = 1
     | otherwise = 1 + niceNumberSize (x `div` 256)
 
-bigEndianNumber :: Bool -> Integer -> [Word8]
+bigEndianNumber :: Bool -> Int64 -> [Word8]
 bigEndianNumber signed x = unsignedBigEndianNumber niceSize x'
     where
     niceSize = niceNumberSize x
@@ -131,7 +132,7 @@ matroskaHeader = B.concat [
     ]
 
 
-rawFrame :: Integer -> Word8 -> Integer -> [B.ByteString] -> B.ByteString
+rawFrame :: Int64 -> Word8 -> Int64 -> [B.ByteString] -> B.ByteString
 rawFrame rel_timecode additional_flags track buffers = B.concat [
      B.pack $ writeEbmlNumber ENUnsigned track
     ,B.pack $ unsignedBigEndianNumber 2 rel_timecode'
@@ -154,10 +155,10 @@ rawFrame rel_timecode additional_flags track buffers = B.concat [
     lacing = n-1 : concatMap (xiph . fromIntegral) lengths
 
 
-toMatroskaTimecode :: Integer -> Double -> Integer
+toMatroskaTimecode :: Int64 -> Double -> Int64
 toMatroskaTimecode timecode_scale timecode = floor $ (timecode * 1000000000.0) / fromIntegral timecode_scale
 
-frameCluster :: Integer -> Frame -> MatroskaElement
+frameCluster :: Int64 -> Frame -> MatroskaElement
 frameCluster timecode_scale frame =
      MatroskaElement EECluster Nothing $ ECMaster [
         MatroskaElement EETimecode Nothing $ ECUnsigned $ toMatroskaTimecode' (fTimeCode frame)
@@ -168,7 +169,7 @@ frameCluster timecode_scale frame =
                 ,MatroskaElement EEBlock Nothing $ ECBinary frameData 
                 ]
     ] where
-    toMatroskaTimecode' :: Double -> Integer
+    toMatroskaTimecode' :: Double -> Int64
     toMatroskaTimecode' = toMatroskaTimecode timecode_scale
     flag_maybe_keyframe    = if fKeyframe    frame then bit 7 else 0
     flag_maybe_discardable = if fDiscardable frame then bit 0 else 0
@@ -262,7 +263,7 @@ tweakInfo info = new_info
             Nothing -> info { iMuxingApplication = Just txt_HsMkv }
     txt_HsMkv = T.pack "HsMkv"
 
-eventToElement :: Integer -> MatroskaEvent -> Maybe MatroskaElement
+eventToElement :: Int64 -> MatroskaEvent -> Maybe MatroskaElement
 eventToElement timescale (MEInfo info) = Just $
     infoElement $ tweakInfo $ info {iTimecodeScale=timescale}
 eventToElement _ (METracks tracks) = Just $
@@ -275,7 +276,7 @@ eventToElement _ _ = Nothing
 writeMkv :: [MatroskaEvent] -> B.ByteString
 writeMkv events = B.concat (matroskaHeader:unfoldr handle (events,1000000))
     where
-    handle :: ([MatroskaEvent], Integer) -> Maybe (B.ByteString, ([MatroskaEvent], Integer))
+    handle :: ([MatroskaEvent], Int64) -> Maybe (B.ByteString, ([MatroskaEvent], Int64))
     handle ( MEInfo info   : tail1, _) = 
         Just (writeMatroskaElement $ infoElement $ tweakInfo info, (tail1, iTimecodeScale info))
     handle (METracks tracks: tail1, timescale) = 

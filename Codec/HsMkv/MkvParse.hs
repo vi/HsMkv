@@ -31,6 +31,7 @@ import Data.Bits
 import Data.List 
 import Data.Maybe 
 import Control.Monad
+import Data.Int
 
 import Codec.HsMkv.MkvTabular
 import Codec.HsMkv.Model
@@ -38,10 +39,10 @@ import Codec.HsMkv.Model
 
 data ParserState = ParserState {
      psBuffer :: B.ByteString
-    ,psTimecodeScale :: Integer
+    ,psTimecodeScale :: Int64
     ,psMode :: ParserMode
     ,psElement :: Maybe MatroskaElement
-    ,psTimecode :: Integer
+    ,psTimecode :: Int64
 } deriving (Show)
 
 data ParserMode = ReadEBML | HandleEBML deriving Show
@@ -57,13 +58,13 @@ getMajorBit x
         more <-  getMajorBit $ shiftL x 1
         return $ 1 + more
 
-readEbmlNumber :: EbmlNumberType -> B.ByteString -> Maybe (Integer, B.ByteString)
+readEbmlNumber :: EbmlNumberType -> B.ByteString -> Maybe (Int64, B.ByteString)
 readEbmlNumber ENUnmodified b = do
     (head1, tail1) <- B.uncons b
     additionalSize <- getMajorBit head1
     renStage2 additionalSize (fromIntegral head1) tail1
         where
-        renStage2 :: Int -> Integer -> B.ByteString -> Maybe (Integer, B.ByteString)
+        renStage2 :: Int -> Int64 -> B.ByteString -> Maybe (Int64, B.ByteString)
         renStage2 0 x rest = Just (x, rest)
         renStage2 n x rest = do
             (head2, tail2) <- B.uncons rest
@@ -83,7 +84,7 @@ readEbmlNumber ENSigned b = do
     let x2 = x - (2 ^ (6 + 7 * additionalSize) - 1)
     return (x2, tail1)
 
-readBigEndianNumber :: Bool -> B.ByteString -> Maybe Integer
+readBigEndianNumber :: Bool -> B.ByteString -> Maybe Int64
 readBigEndianNumber signed b = do
     (head1, _) <- B.uncons b -- just check that it is not empty
     return $ ret signed head1
@@ -94,12 +95,12 @@ readBigEndianNumber signed b = do
         | otherwise                = ret False undefined
 
 
-readXiphLacingNumber :: B.ByteString -> Maybe (Integer, B.ByteString)
+readXiphLacingNumber :: B.ByteString -> Maybe (Int64, B.ByteString)
 readXiphLacingNumber b = do
     (head1, tail1) <- B.uncons b
     rXLN 0 head1 tail1
     where
-    rXLN :: Integer -> Word8 -> B.ByteString -> Maybe (Integer, B.ByteString)
+    rXLN :: Int64 -> Word8 -> B.ByteString -> Maybe (Int64, B.ByteString)
     rXLN accum 255 tail1 = do
         (head2, tail2) <- B.uncons tail1 
         rXLN (accum+255) head2 tail2
@@ -115,7 +116,7 @@ B.readFile "t.mkv" >>=  (\x -> return $ parseMkv x) >>= (\y -> return $ take 10 
 lazyBytestringToNormalBytestring :: B.ByteString -> Data.ByteString.ByteString
 lazyBytestringToNormalBytestring = Data.ByteString.Char8.concat . B.toChunks
 
-fromMatroskaDate :: Integer -> Double
+fromMatroskaDate :: Int64 -> Double
 fromMatroskaDate x = fromIntegral x / 1000000000.0 + 978300000
 -- 2001-01-01T00:00:00,000000000
 
@@ -188,7 +189,7 @@ resync b = result
         then b
         else resync $ B.dropWhile dropper next
 
-isThisTopLevelElementValid :: ElementClass -> Maybe Integer -> Bool
+isThisTopLevelElementValid :: ElementClass -> Maybe Int64 -> Bool
 isThisTopLevelElementValid klass (Just size) = case klass of
     EEUnknown _ -> False -- Unknown top-level (or Segment or Cluster) element? resync!
     EECRC32 -> size < 30
@@ -404,7 +405,7 @@ parseMkv1 state = result $ psMode state
         where
         entries = ebmlChildren $ fromJust $ psElement state
         durationEl = find (\x -> EEBlockDuration == meClass x) entries
-        duration :: Maybe Integer
+        duration :: Maybe Int64
         duration = durationEl >>= (\(MatroskaElement _ _ (ECUnsigned x)) -> return x)
         blockEl = find (\x -> EEBlock == meClass x) entries
         buf = blockEl >>= (\(MatroskaElement _ _ (ECBinary x)) -> return x)
@@ -413,7 +414,7 @@ parseMkv1 state = result $ psMode state
             Just f -> MEFrame f
 
     --              duration         block data
-    handle_frame :: Maybe Integer  ->  B.ByteString -> Maybe Frame
+    handle_frame :: Maybe Int64  ->  B.ByteString -> Maybe Frame
     handle_frame dur buf = do
         (track_number, rest1) <- readEbmlNumber ENUnsigned buf
         (rel_timcode_buf, rest2) <- return $ B.splitAt 2 rest1

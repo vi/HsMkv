@@ -13,6 +13,7 @@ module Codec.HsMkv.Model (
     ,EbmlNumberType(..)
     ) where
 
+import Data.Int
 import qualified Data.Text as T
 import qualified Data.ByteString.Lazy as B
 import Codec.HsMkv.MkvTabular
@@ -20,7 +21,7 @@ import Codec.HsMkv.MkvTabular
 -- Description of some events
 
 data Info = Info {
-     iTimecodeScale :: Integer
+     iTimecodeScale :: Int64
     ,iMuxingApplication :: Maybe T.Text
     ,iWritingApplication :: Maybe T.Text
     ,iDuration :: Maybe Double
@@ -41,28 +42,28 @@ data TrackType =
     TTLogo | 
     TTButton | 
     TTControl | 
-    TTUnknown Integer
+    TTUnknown Int64
     deriving (Show, Eq, Ord, Read)
 
 
 
 data Track = Track {
       tType :: TrackType
-    , tNumber :: Integer
+    , tNumber :: Int64
     , tCodecId :: T.Text
 
-    , tUID :: Maybe Integer
-    , tMinCache :: Maybe Integer
+    , tUID :: Maybe Int64
+    , tMinCache :: Maybe Int64
     , tCodecPrivate :: Maybe B.ByteString
     , tDefaultDuration :: Maybe Double
     , tLanguage :: Maybe T.Text
-    , tVideoPixelWidth :: Maybe Integer
-    , tVideoPixelHeight :: Maybe Integer
-    , tVideoDisplayWidth :: Maybe Integer
-    , tVideoDisplayHeight :: Maybe Integer
+    , tVideoPixelWidth :: Maybe Int64
+    , tVideoPixelHeight :: Maybe Int64
+    , tVideoDisplayWidth :: Maybe Int64
+    , tVideoDisplayHeight :: Maybe Int64
     , tAudioSamplingFrequency :: Maybe Double
     , tAudioOutputSamplingFrequency :: Maybe Double
-    , tAudioChannels :: Maybe Integer
+    , tAudioChannels :: Maybe Int64
     } deriving (Show, Eq, Read)
 
 blankTrack :: Track
@@ -70,7 +71,7 @@ blankTrack = Track (TTUnknown (-1)) (-1) T.empty Nothing Nothing Nothing Nothing
     Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing
 
 data Frame = Frame {
-     fTrackNumber :: Integer
+     fTrackNumber :: Int64
     ,fTimeCode :: Double
     ,fData :: [B.ByteString]
     ,fDuration :: Maybe Double
@@ -96,14 +97,14 @@ data MatroskaEvent =
 
 data MatroskaElement = MatroskaElement {
      meClass :: ElementClass
-    ,meSize :: Maybe Integer
+    ,meSize :: Maybe Int64
     ,meContent :: ElementContent  
     } deriving (Show, Eq, Read)
 
 data ElementContent = 
         ECMaster [MatroskaElement] |
-        ECUnsigned Integer |
-        ECSigned Integer |
+        ECUnsigned Int64 |
+        ECSigned Int64 |
         ECTextAscii T.Text |
         ECTextUtf8 T.Text |
         ECBinary B.ByteString |
