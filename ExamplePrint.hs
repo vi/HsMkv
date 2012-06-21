@@ -1,4 +1,4 @@
-module Main where
+module ExamplePrint where
 
 import qualified Codec.HsMkv.MkvParse as M
 import qualified Codec.HsMkv.Model as M

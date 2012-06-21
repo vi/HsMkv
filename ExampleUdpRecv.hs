@@ -1,4 +1,4 @@
-module Main where
+module ExampleUdpRecv where
 
 -- Receive UDP datagrams and store them in matroska file
 -- (with appropriate timecodes based of current UNIX time)
@@ -26,6 +26,8 @@ import Control.Monad
 
 main = do
     args <- getArgs
+    mainUdpRecv args
+mainUdpRecv args =
     if length args < 4
         then do
             printf "Usage: example_udp_recv type CodecID host port > matroska_file.mkv\n"

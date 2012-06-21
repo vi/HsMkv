@@ -1,4 +1,4 @@
-module Main where
+module ExampleUdpSend where
 
 -- Read matroska file and send contents of specified track to udp://host:port
 -- (with delays according to timecodes)
@@ -58,8 +58,11 @@ udpSendHandlerHandler initial_time track sock addr = h
     h (tb, []) = Nothing
             
 
+
 main = do
     args <- getArgs
+    mainUdpSend args
+mainUdpSend args =
     if length args < 3 
         then printf "Usage: example_udp_send track_number host port < matroska_file.mkv\n"
         else withSocketsDo $ do

@@ -1,6 +1,6 @@
 -- Read mkv from stdin, demux, mux and write to stdout
 
-module Main where
+module ExampleTransmux where
 
 import qualified Codec.HsMkv.MkvParse as M
 import qualified Codec.HsMkv.MkvGen as MG
