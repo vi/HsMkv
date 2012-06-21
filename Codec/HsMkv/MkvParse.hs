@@ -129,16 +129,16 @@ interpretFloat b = do
         
 
 parseElementContent :: ElementType -> B.ByteString -> Maybe ElementContent
-parseElementContent ETUnsigned = liftM EC_Unsigned . readBigEndianNumber False
-parseElementContent ETSigned   = liftM EC_Signed . readBigEndianNumber True
-parseElementContent ETBinary  = Just . EC_Binary
-parseElementContent ETFlatten = Just . EC_Binary
-parseElementContent ETUnknown = Just . EC_Binary
-parseElementContent ETTextUtf8  = Just . EC_TextUtf8  . E.decodeUtf8With EE.lenientDecode . lazyBytestringToNormalBytestring
-parseElementContent ETTextAscii = Just . EC_TextAscii . T.pack . C.unpack
-parseElementContent ETMaster = Just . EC_Master . tryParseEbml
-parseElementContent ETDate = liftM (EC_Date . fromMatroskaDate) . readBigEndianNumber True
-parseElementContent ETFloat = liftM EC_Float . interpretFloat
+parseElementContent ETUnsigned = liftM ECUnsigned . readBigEndianNumber False
+parseElementContent ETSigned   = liftM ECSigned . readBigEndianNumber True
+parseElementContent ETBinary  = Just . ECBinary
+parseElementContent ETFlatten = Just . ECBinary
+parseElementContent ETUnknown = Just . ECBinary
+parseElementContent ETTextUtf8  = Just . ECTextUtf8  . E.decodeUtf8With EE.lenientDecode . lazyBytestringToNormalBytestring
+parseElementContent ETTextAscii = Just . ECTextAscii . T.pack . C.unpack
+parseElementContent ETMaster = Just . ECMaster . tryParseEbml
+parseElementContent ETDate = liftM (ECDate . fromMatroskaDate) . readBigEndianNumber True
+parseElementContent ETFloat = liftM ECFloat . interpretFloat
 
 
 
@@ -216,7 +216,7 @@ toHex :: B.ByteString -> T.Text
 toHex = T.pack . concat . (map $ toHex1 . fromInteger . toInteger) . B.unpack
     
 ebmlChildren :: MatroskaElement -> [MatroskaElement]
-ebmlChildren (MatroskaElement _ _ (EC_Master ret)) = ret
+ebmlChildren (MatroskaElement _ _ (ECMaster ret)) = ret
 ebmlChildren _ = []
 
 -- parse_lacing function takes the content (starting from the number of laced frames) 
@@ -275,11 +275,11 @@ parseMkv1 state = result $ ps_mode state
         Nothing -> case B.empty == ps_buffer state of
             True -> Nothing -- really eof of file
             False -> -- need to resync 
-                Just (ME_Resync, state {ps_buffer = resync $ ps_buffer state})
+                Just (MEResync, state {ps_buffer = resync $ ps_buffer state})
         Just (element, tail1) ->
             case isThisTopLevelElementValid (me_class element) (me_size element) of
-            False ->  Just (ME_Resync, state {ps_buffer = resync $ ps_buffer state})
-            True  -> Just (ME_EbmlElement element, state {
+            False ->  Just (MEResync, state {ps_buffer = resync $ ps_buffer state})
+            True  -> Just (MEEbmlElement element, state {
                     ps_element = Just element,
                     ps_buffer  = tail1, 
                     ps_mode    = HandleEBML })
@@ -293,21 +293,21 @@ parseMkv1 state = result $ ps_mode state
             EETimecode -> handle_timecode
             EEBlockGroup -> handle_blockGroup
             EESimpleBlock -> handle_simpleBlock
-            _          -> (ME_Noop, state)
+            _          -> (MENoop, state)
 
     handle_info :: (MatroskaEvent, ParserState)
-    handle_info = (ME_Info info, new_state)
+    handle_info = (MEInfo info, new_state)
         where
         entries = ebmlChildren $ fromJust $ ps_element state
         handle_info_entry :: (ParserState, Info) -> MatroskaElement -> (ParserState, Info)
         handle_info_entry (ps, i) (MatroskaElement kl  _ content ) = hie2 kl content
             where
-            hie2 EEMuxingApp (EC_TextUtf8 t)  = (ps, i{i_muxingApplication=Just t})
-            hie2 EEWritingApp (EC_TextUtf8 t) = (ps, i{i_writingApplication=Just t})
-            hie2 EEDuration   (EC_Float t)    = (ps, i{i_duration=Just t})
-            hie2 EESegmentUID (EC_Binary t)   = (ps, i{i_segmentUid=Just $ toHex t})
-            hie2 EETitle (EC_TextUtf8 t)      = (ps, i{i_title=Just t})
-            hie2 EETimecodeScale (EC_Unsigned t) = 
+            hie2 EEMuxingApp (ECTextUtf8 t)  = (ps, i{i_muxingApplication=Just t})
+            hie2 EEWritingApp (ECTextUtf8 t) = (ps, i{i_writingApplication=Just t})
+            hie2 EEDuration   (ECFloat t)    = (ps, i{i_duration=Just t})
+            hie2 EESegmentUID (ECBinary t)   = (ps, i{i_segmentUid=Just $ toHex t})
+            hie2 EETitle (ECTextUtf8 t)      = (ps, i{i_title=Just t})
+            hie2 EETimecodeScale (ECUnsigned t) = 
                 (ps{ps_timecode_scale=t}, i{i_timecodeScale=t})
             hie2 _ _ = (ps, i)
         initial_info = Info {
@@ -323,49 +323,49 @@ parseMkv1 state = result $ ps_mode state
         
 
     handle_tracks :: (MatroskaEvent, ParserState)
-    handle_tracks = (ME_Tracks tracks, state)
+    handle_tracks = (METracks tracks, state)
         where
         entries = ebmlChildren $ fromJust $ ps_element state
         handle_track_entry :: Track -> MatroskaElement -> Track
         handle_track_entry i (MatroskaElement kl _ content ) = hte2 kl content
             where
-            hte2 EETrackNumber (EC_Unsigned t)  = i{t_number=t}
-            hte2 EETrackUID (EC_Unsigned t)  = i{t_UID=Just t}
-            hte2 EECodecID (EC_TextAscii t)  = i{t_codecId=t}
-            hte2 EECodecPrivate (EC_Binary t) = i{t_codecPrivate=Just t}
-            hte2 EEDefaultDuration (EC_Unsigned t) = 
+            hte2 EETrackNumber (ECUnsigned t)  = i{t_number=t}
+            hte2 EETrackUID (ECUnsigned t)  = i{t_UID=Just t}
+            hte2 EECodecID (ECTextAscii t)  = i{t_codecId=t}
+            hte2 EECodecPrivate (ECBinary t) = i{t_codecPrivate=Just t}
+            hte2 EEDefaultDuration (ECUnsigned t) = 
                 i{t_defaultDuration=Just $ fromInteger t / 1000000000.0}
-            hte2 EEMinCache (EC_Unsigned t)  = i{t_minCache=Just t}
-            hte2 EELanguage (EC_TextAscii t) = i{t_language=Just t}
-            hte2 EEVideo (EC_Master t) = foldl' hte2_video i t
+            hte2 EEMinCache (ECUnsigned t)  = i{t_minCache=Just t}
+            hte2 EELanguage (ECTextAscii t) = i{t_language=Just t}
+            hte2 EEVideo (ECMaster t) = foldl' hte2_video i t
                 where
-                hte2_video j (MatroskaElement EEPixelWidth    _ (EC_Unsigned d)) = j{t_videoPixelWidth = Just d}
-                hte2_video j (MatroskaElement EEPixelHeight   _ (EC_Unsigned d)) = j{t_videoPixelHeight = Just d}
-                hte2_video j (MatroskaElement EEDisplayWidth  _ (EC_Unsigned d)) = j{t_videoDisplayWidth = Just d}
-                hte2_video j (MatroskaElement EEDisplayHeight _ (EC_Unsigned d)) = j{t_videoDisplayHeight = Just d}
+                hte2_video j (MatroskaElement EEPixelWidth    _ (ECUnsigned d)) = j{t_videoPixelWidth = Just d}
+                hte2_video j (MatroskaElement EEPixelHeight   _ (ECUnsigned d)) = j{t_videoPixelHeight = Just d}
+                hte2_video j (MatroskaElement EEDisplayWidth  _ (ECUnsigned d)) = j{t_videoDisplayWidth = Just d}
+                hte2_video j (MatroskaElement EEDisplayHeight _ (ECUnsigned d)) = j{t_videoDisplayHeight = Just d}
                 hte2_video j _ = j
-            hte2 EEAudio (EC_Master t) = foldl' hte2_audio i t
+            hte2 EEAudio (ECMaster t) = foldl' hte2_audio i t
                 where
-                hte2_audio j (MatroskaElement EESamplingFrequency       _ (EC_Float d))    
+                hte2_audio j (MatroskaElement EESamplingFrequency       _ (ECFloat d))    
                     = j{t_audioSamplingFrequency       = Just d}
-                hte2_audio j (MatroskaElement EEOutputSamplingFrequency _ (EC_Float d))
+                hte2_audio j (MatroskaElement EEOutputSamplingFrequency _ (ECFloat d))
                     = j{t_audioOutputSamplingFrequency = Just d}
-                hte2_audio j (MatroskaElement EEChannels                _ (EC_Unsigned d))
+                hte2_audio j (MatroskaElement EEChannels                _ (ECUnsigned d))
                     = j{t_audioChannels                = Just d}
                 hte2_audio j _ = j
-            hte2 EETrackType (EC_Unsigned t) = i{t_type = interpret_tt t}
+            hte2 EETrackType (ECUnsigned t) = i{t_type = interpret_tt t}
             hte2 _ _ = i
-        interpret_tt 1 = TT_Video
-        interpret_tt 2 = TT_Audio
-        interpret_tt 3 = TT_Complex
-        interpret_tt 0x10 = TT_Logo
-        interpret_tt 0x11 = TT_Subtitle
-        interpret_tt 0x12 = TT_Button
-        interpret_tt 0x20 = TT_Control
-        interpret_tt x = TT_Unknown x
+        interpret_tt 1 = TTVideo
+        interpret_tt 2 = TTAudio
+        interpret_tt 3 = TTComplex
+        interpret_tt 0x10 = TTLogo
+        interpret_tt 0x11 = TTSubtitle
+        interpret_tt 0x12 = TTButton
+        interpret_tt 0x20 = TTControl
+        interpret_tt x = TTUnknown x
         initial_track = Track {
              t_number = -1
-            ,t_type = TT_Unknown $ -1
+            ,t_type = TTUnknown $ -1
             ,t_codecId = T.empty
 
             ,t_UID = Nothing
@@ -382,7 +382,7 @@ parseMkv1 state = result $ ps_mode state
             ,t_audioChannels = Nothing
             }
         handle_one_track :: MatroskaElement -> Track
-        handle_one_track (MatroskaElement _ _ (EC_Master x)) =
+        handle_one_track (MatroskaElement _ _ (ECMaster x)) =
             foldl' handle_track_entry initial_track x  
         handle_one_track _ = initial_track -- hack to prevent errors on invalid files
 
@@ -392,10 +392,10 @@ parseMkv1 state = result $ ps_mode state
     handle_simpleBlock :: (MatroskaEvent, ParserState)
     handle_simpleBlock = (msg, state)    
         where
-        buf = (\(EC_Binary x) -> x) $ me_content $ fromJust $ ps_element state
+        buf = (\(ECBinary x) -> x) $ me_content $ fromJust $ ps_element state
         msg = case handle_frame Nothing buf of
-            Nothing -> ME_Noop
-            Just f -> ME_Frame f
+            Nothing -> MENoop
+            Just f -> MEFrame f
             
     
     handle_blockGroup :: (MatroskaEvent, ParserState)
@@ -404,12 +404,12 @@ parseMkv1 state = result $ ps_mode state
         entries = ebmlChildren $ fromJust $ ps_element state
         durationEl = find (\x -> EEBlockDuration == me_class x) entries
         duration :: Maybe Integer
-        duration = durationEl >>= (\(MatroskaElement _ _ (EC_Unsigned x)) -> return x)
+        duration = durationEl >>= (\(MatroskaElement _ _ (ECUnsigned x)) -> return x)
         blockEl = find (\x -> EEBlock == me_class x) entries
-        buf = blockEl >>= (\(MatroskaElement _ _ (EC_Binary x)) -> return x)
+        buf = blockEl >>= (\(MatroskaElement _ _ (ECBinary x)) -> return x)
         msg = case buf >>= handle_frame duration of
-            Nothing -> ME_Noop
-            Just f -> ME_Frame f
+            Nothing -> MENoop
+            Just f -> MEFrame f
 
     --              duration         block data
     handle_frame :: Maybe Integer  ->  B.ByteString -> Maybe Frame
@@ -451,11 +451,11 @@ parseMkv1 state = result $ ps_mode state
         
 
     handle_timecode :: (MatroskaEvent, ParserState)
-    handle_timecode = (ME_Noop, new_state)
+    handle_timecode = (MENoop, new_state)
         where
         (MatroskaElement _ _ content) = fromJust $ ps_element state
         timecode = case content of
-            EC_Unsigned x -> x
+            ECUnsigned x -> x
             _ -> error "Internal error: Timecode element is not unsigned"
         new_state = state{ps_timecode = timecode}
         

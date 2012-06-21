@@ -5,7 +5,7 @@ module ExampleUdpRecv where
 
 -- Example:
 --   cvlc something.wav --sout '#transcode{acodec=mp3,ab=500}:standard{access=udp,mux=mp3,dst="127.0.0.1:5567"}'
---   example_udp_recv TT_Audio A_MPEG/L3 0.0.0.0 5567 > something.mkv
+--   example_udp_recv TTAudio A_MPEG/L3 0.0.0.0 5567 > something.mkv
 
 import Network.Socket
 import qualified Network.Socket.ByteString as NB
@@ -31,7 +31,7 @@ mainUdpRecv args =
     if length args < 4
         then do
             printf "Usage: example_udp_recv type CodecID host port > matroska_file.mkv\n"
-            printf "      types:  TT_Audio TT_Video TT_Subtitle TT_Complex TT_Logo TT_Button TT_Control\n"
+            printf "      types:  TTAudio TTVideo TTSubtitle TTComplex TTLogo TTButton TTControl\n"
         else withSocketsDo $ do
             let (arg1s:arg2s:arg3s:arg4s:_) = args
             let (track_type, codecID, hostname, port) = (
@@ -53,18 +53,18 @@ mainUdpRecv args =
                   B.hPut stdout $ M.writeMatroskaElement $ 
                     fromJust $ M.eventToElement 1000000 event)
 
-            outputEvent $ M.ME_Info M.blankInfo {
+            outputEvent $ M.MEInfo M.blankInfo {
                  M.i_writingApplication = Just $ T.pack "HsMkv example_udp_recv"
                 ,M.i_date = Just now
                 }   
-            outputEvent $ M.ME_Tracks [M.blankTrack {
+            outputEvent $ M.METracks [M.blankTrack {
                 M.t_number = 1
                ,M.t_UID = Just 1
                ,M.t_type = track_type
                ,M.t_codecId = codecID
                }]    
 
-            let handleBuffer (buf, timestamp) = outputEvent $ M.ME_Frame M.blankFrame {
+            let handleBuffer (buf, timestamp) = outputEvent $ M.MEFrame M.blankFrame {
                  M.f_trackNumber = 1
                 ,M.f_timeCode = timestamp
                 ,M.f_data = [buf]

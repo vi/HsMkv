@@ -17,11 +17,11 @@ import Debug.Trace
 
 
 demoHandler :: M.MatroskaEvent -> IO ()
-demoHandler M.ME_Resync = printf "Resync\n"
---demoHandler (M.ME_EbmlElement (M.MatroskaElement klass (Just size) content)) = printf " %s %d\n" (show klass) size
+demoHandler M.MEResync = printf "Resync\n"
+--demoHandler (M.MEEbmlElement (M.MatroskaElement klass (Just size) content)) = printf " %s %d\n" (show klass) size
 
 
-demoHandler (M.ME_Info inf) = let
+demoHandler (M.MEInfo inf) = let
     printf_m :: (PrintfArg a) => String -> Maybe a -> IO ()
     printf_m fmt = maybe (return ()) (printf fmt)
     in do
@@ -33,7 +33,7 @@ demoHandler (M.ME_Info inf) = let
         printf_m "  Duration: %g\n"                             $ M.i_duration inf
         printf_m "  Segment UID: %s\n"         $ liftM T.unpack $ M.i_segmentUid inf
 
-demoHandler (M.ME_Tracks tracks) = mapM_ ttt tracks
+demoHandler (M.METracks tracks) = mapM_ ttt tracks
     where
     ttt :: M.Track -> IO()
     ttt t = do
@@ -44,7 +44,7 @@ demoHandler (M.ME_Tracks tracks) = mapM_ ttt tracks
             Just x -> printf "  Language: %s\n"  $ T.unpack x
             Nothing -> return ()
 
-demoHandler (M.ME_Frame frame) =
+demoHandler (M.MEFrame frame) =
     printf "Frame for %d %s%s%s ts=%.06f lace=%d %s len=%d data=%s...\n" tn f_i f_d f_k ts lace dur len bufstr
         where
         tn   =           M.f_trackNumber frame

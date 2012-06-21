@@ -29,8 +29,8 @@ convertByteString = BN.concat . B.toChunks
 udpSendHandlerHandler :: Double -> Integer -> Socket -> SockAddr -> (Maybe Double, [M.MatroskaEvent]) -> Maybe (IO (), (Maybe Double, [M.MatroskaEvent]))
 udpSendHandlerHandler initial_time track sock addr = h
     where
-    h (tb, M.ME_Resync:tail1) = Just (printf "Resync\n", (tb, tail1))
-    h (tb, M.ME_Frame f : tail1) = Just (event, (Just timebase, tail1))
+    h (tb, M.MEResync:tail1) = Just (printf "Resync\n", (tb, tail1))
+    h (tb, M.MEFrame f : tail1) = Just (event, (Just timebase, tail1))
         where
         event = if M.f_trackNumber f == track
                 then do
@@ -48,7 +48,7 @@ udpSendHandlerHandler initial_time track sock addr = h
                     hFlush stdout
         timebase = fromMaybe (initial_time - ts_of_this_frame) tb
         ts_of_this_frame  = M.f_timeCode f
-    h (tb, M.ME_Tracks tracks : tail1) = Just (event, (tb, tail1))
+    h (tb, M.METracks tracks : tail1) = Just (event, (tb, tail1))
         where
         event = case find (\x -> M.t_number x == track) tracks of
             Nothing -> return ()  -- our track is not found

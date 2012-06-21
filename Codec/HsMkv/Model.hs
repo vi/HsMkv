@@ -34,14 +34,14 @@ blankInfo = Info 1000000 Nothing Nothing Nothing Nothing Nothing Nothing
 
 
 data TrackType = 
-    TT_Audio | 
-    TT_Video | 
-    TT_Subtitle | 
-    TT_Complex | 
-    TT_Logo | 
-    TT_Button | 
-    TT_Control | 
-    TT_Unknown Integer
+    TTAudio | 
+    TTVideo | 
+    TTSubtitle | 
+    TTComplex | 
+    TTLogo | 
+    TTButton | 
+    TTControl | 
+    TTUnknown Integer
     deriving (Show, Eq, Ord, Read)
 
 
@@ -66,7 +66,7 @@ data Track = Track {
     } deriving (Show)
 
 blankTrack :: Track
-blankTrack = Track (TT_Unknown (-1)) (-1) T.empty Nothing Nothing Nothing Nothing 
+blankTrack = Track (TTUnknown (-1)) (-1) T.empty Nothing Nothing Nothing Nothing 
     Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing
 
 data Frame = Frame {
@@ -83,13 +83,13 @@ blankFrame :: Frame
 blankFrame = Frame (-1) (-1.0) [] Nothing False False False
 
 data MatroskaEvent =
-    ME_Frame Frame |
-    ME_Tracks [Track] |
-    ME_Info Info |
+    MEFrame Frame |
+    METracks [Track] |
+    MEInfo Info |
 
-    ME_EbmlElement MatroskaElement |
-    ME_Resync |
-    ME_Noop
+    MEEbmlElement MatroskaElement |
+    MEResync |
+    MENoop
     deriving (Show)
 
 
@@ -101,14 +101,14 @@ data MatroskaElement = MatroskaElement {
     } deriving (Show, Eq)
 
 data ElementContent = 
-        EC_Master [MatroskaElement] |
-        EC_Unsigned Integer |
-        EC_Signed Integer |
-        EC_TextAscii T.Text |
-        EC_TextUtf8 T.Text |
-        EC_Binary B.ByteString |
-        EC_Float Double |
-        EC_Date Double
+        ECMaster [MatroskaElement] |
+        ECUnsigned Integer |
+        ECSigned Integer |
+        ECTextAscii T.Text |
+        ECTextUtf8 T.Text |
+        ECBinary B.ByteString |
+        ECFloat Double |
+        ECDate Double
         deriving (Show, Eq)
 
 
