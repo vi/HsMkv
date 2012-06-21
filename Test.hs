@@ -48,42 +48,42 @@ readXiphLacingNumberTests = TestCase $ do
 
 tryParseEbml1Tests = TestCase $ do
     assertEqual "MM0"
-        (Just (MatroskaElement EE_MinCache (Just 2) (EC_Unsigned 0x1234), C.pack ";BC"))
+        (Just (MatroskaElement EEMinCache (Just 2) (ECUnsigned 0x1234), C.pack ";BC"))
         (tryParseEbml1 $ C.pack "\x6D\xE7\x82\x12\x34;BC")
     assertEqual "MM1"
         Nothing
         (tryParseEbml1 $ C.pack "\x6D\xE7\x80;BC")
     assertEqual "MM2"
-        (Just (MatroskaElement EE_MinCache (Just 2) (EC_Unsigned 0x1234), C.pack ""))
+        (Just (MatroskaElement EEMinCache (Just 2) (ECUnsigned 0x1234), C.pack ""))
         (tryParseEbml1 $ C.pack "\x6D\xE7\x82\x12\x34")
     assertEqual "MM3"
-        (Just (MatroskaElement EE_TrackOffset (Just 1) (EC_Signed (-4)), C.pack ";BC"))
+        (Just (MatroskaElement EETrackOffset (Just 1) (ECSigned (-4)), C.pack ";BC"))
         (tryParseEbml1 $ C.pack "\x53\x7F\x81\xFC;BC")
     assertEqual "MMB"
-        (Just (MatroskaElement EE_SegmentUID (Just 1) (EC_Binary (C.pack "H")), C.pack ";BC"))
+        (Just (MatroskaElement EESegmentUID (Just 1) (ECBinary (C.pack "H")), C.pack ";BC"))
         (tryParseEbml1 $ C.pack "\x73\xA4\x81H;BC")
     assertEqual "MMb"
-        (Just (MatroskaElement EE_SegmentUID (Just 0) (EC_Binary (C.pack "")), C.pack "H;BC"))
+        (Just (MatroskaElement EESegmentUID (Just 0) (ECBinary (C.pack "")), C.pack "H;BC"))
         (tryParseEbml1 $ C.pack "\x73\xA4\x80H;BC")
     assertEqual "MM4"
-        (Just (MatroskaElement EE_Title (Just 8) (EC_TextUtf8 (T.pack "тест")), C.pack ";BC"))
+        (Just (MatroskaElement EETitle (Just 8) (ECTextUtf8 (T.pack "тест")), C.pack ";BC"))
         (tryParseEbml1 $ C.pack "\x7B\xA9\x88\xd1\x82\xd0\xb5\xd1\x81\xd1\x82;BC")
     assertEqual "MM5"
-        (Just (MatroskaElement EE_CodecID (Just 5) (EC_TextAscii (T.pack "A_AAC")), C.pack ";BC"))
+        (Just (MatroskaElement EECodecID (Just 5) (ECTextAscii (T.pack "A_AAC")), C.pack ";BC"))
         (tryParseEbml1 $ C.pack "\x86\x85\&A_AAC;BC")
     assertEqual "MM6"
-        (Just (MatroskaElement EE_DateUTC (Just 8) (EC_Date 1340061045.0), C.pack ";BC"))
+        (Just (MatroskaElement EEDateUTC (Just 8) (ECDate 1340061045.0), C.pack ";BC"))
         (tryParseEbml1 $ C.pack "\x44\x61\x88\x05\x05\x3B\xC0\xF4\xCC\x92\x00;BC")
     assertEqual "MM7"
-        (Just (MatroskaElement EE_SamplingFrequency (Just 8) (EC_Float 1234.5), C.pack ";BC"))
+        (Just (MatroskaElement EESamplingFrequency (Just 8) (ECFloat 1234.5), C.pack ";BC"))
         (tryParseEbml1 $ C.pack "\xB5\x88\x40\x93\x4a\x00\x00\x00\x00\x00;BC")
     assertEqual "MM8"
-        (Just (MatroskaElement EE_SamplingFrequency (Just 4) (EC_Float 1234.5), C.pack ";BC"))
+        (Just (MatroskaElement EESamplingFrequency (Just 4) (ECFloat 1234.5), C.pack ";BC"))
         (tryParseEbml1 $ C.pack "\xB5\x84\x44\x9a\x50\x00;BC")
     assertEqual "MM9"
-        (Just (MatroskaElement EE_Tracks (Just 4) (EC_Master [
-             (MatroskaElement EE_TrackEntry (Just 0) (EC_Master []))
-            ,(MatroskaElement EE_TrackEntry (Just 0) (EC_Master []))
+        (Just (MatroskaElement EETracks (Just 4) (ECMaster [
+             (MatroskaElement EETrackEntry (Just 0) (ECMaster []))
+            ,(MatroskaElement EETrackEntry (Just 0) (ECMaster []))
             ]), C.pack ";BC"))
         (tryParseEbml1 $ C.pack "\x16\x54\xAE\x6B\x84\xAE\x80\xAE\x80;BC")
 

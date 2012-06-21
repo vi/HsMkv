@@ -8,7 +8,7 @@ module Codec.HsMkv.MkvParse (
     ,tryParseEbml
     ,resync
     ,ebmlChildren
-    ,parse_lacing -- May change
+    ,parseLacing -- May change
     ,toHex
     ) where
 
@@ -37,11 +37,11 @@ import Codec.HsMkv.Model
 
 
 data ParserState = ParserState {
-     ps_buffer :: B.ByteString
-    ,ps_timecode_scale :: Integer
-    ,ps_mode :: ParserMode
-    ,ps_element :: Maybe MatroskaElement
-    ,ps_timecode :: Integer
+     psBuffer :: B.ByteString
+    ,psTimecodeScale :: Integer
+    ,psMode :: ParserMode
+    ,psElement :: Maybe MatroskaElement
+    ,psTimecode :: Integer
 } deriving (Show)
 
 data ParserMode = ReadEBML | HandleEBML deriving Show
@@ -67,20 +67,20 @@ readEbmlNumber ENUnmodified b = do
         renStage2 0 x rest = Just (x, rest)
         renStage2 n x rest = do
             (head2, tail2) <- B.uncons rest
-            renStage2 (n-1) ((shiftL x 8) .|. toInteger head2) tail2
+            renStage2 (n-1) (shiftL x 8 .|. toInteger head2) tail2
 
 readEbmlNumber ENUnsigned b = do
     (head1, _) <- B.uncons b
-    additionalSize <- getMajorBit $ head1
+    additionalSize <- getMajorBit head1
     (x, tail1) <- readEbmlNumber ENUnmodified b
-    x2 <- return $ xor x $ shiftL (shiftR 0x80 $ additionalSize) (additionalSize * 8)
+    let x2 = xor x $ shiftL (shiftR 0x80 additionalSize) (additionalSize * 8)
     return (x2, tail1)
 
 readEbmlNumber ENSigned b = do
     (head1 , _) <- B.uncons b
-    additionalSize <- getMajorBit $ head1
+    additionalSize <- getMajorBit head1
     (x, tail1) <- readEbmlNumber ENUnsigned b
-    x2 <- return $ x - (2 ^ (6 + 7 * additionalSize) - 1)
+    let x2 = x - (2 ^ (6 + 7 * additionalSize) - 1)
     return (x2, tail1)
 
 readBigEndianNumber :: Bool -> B.ByteString -> Maybe Integer
@@ -88,9 +88,9 @@ readBigEndianNumber signed b = do
     (head1, _) <- B.uncons b -- just check that it is not empty
     return $ ret signed head1
     where
-    ret False _ = foldl1' (\x y -> (shiftL x 8) .|. y) $ fmap toInteger $ B.unpack b
+    ret False _ = foldl1' (\x y -> shiftL x 8 .|. y) $ fmap toInteger $ B.unpack b
     ret True head1
-        | head1 .&. 0x80 == 0x80    = ret False undefined - 2^(8*B.length(b))
+        | head1 .&. 0x80 == 0x80    = ret False undefined - 2^(8*B.length b)
         | otherwise                = ret False undefined
 
 
@@ -116,7 +116,7 @@ lazyBytestringToNormalBytestring :: B.ByteString -> Data.ByteString.ByteString
 lazyBytestringToNormalBytestring = Data.ByteString.Char8.concat . B.toChunks
 
 fromMatroskaDate :: Integer -> Double
-fromMatroskaDate x = (fromInteger x) / 1000000000.0 + 978300000
+fromMatroskaDate x = fromInteger x / 1000000000.0 + 978300000
 -- 2001-01-01T00:00:00,000000000
 
 interpretFloat :: B.ByteString -> Maybe Double
@@ -144,19 +144,19 @@ parseElementContent ETFloat = liftM ECFloat . interpretFloat
 
 tryParseEbml1 :: B.ByteString -> Maybe (MatroskaElement, B.ByteString)
 tryParseEbml1 buffer = do
-    (id_,   rest1) <- readEbmlNumber ENUnmodified $ buffer
+    (id_,   rest1) <- readEbmlNumber ENUnmodified buffer
     (size, rest2) <- readEbmlNumber ENUnsigned rest1
-    size2 <- return $ if (lookupElementType $ lookupElementId id_) == ETFlatten then 0 else size
-    (data_, rest3) <- return $ B.splitAt (fromInteger size2) rest2
+    let size2 = if lookupElementType (lookupElementId id_) == ETFlatten then 0 else size
+    let (data_, rest3) = B.splitAt (fromInteger size2) rest2
     element <- let 
         klass = lookupElementId id_
         type_ = lookupElementType klass
         in liftM (MatroskaElement klass (Just size2)) $ parseElementContent type_ data_
-    new_state <- Just $ rest3
+    new_state <- Just rest3
     return (element, new_state)
 
 tryParseEbml :: B.ByteString -> [MatroskaElement]
-tryParseEbml input = unfoldr tryParseEbml1 input
+tryParseEbml = unfoldr tryParseEbml1
 
 
 
@@ -179,14 +179,14 @@ resync b = result
 
     (_, next) = B.splitAt 1 b
 
-    result = case
-        b == B.empty ||
-        B.isPrefixOf segment_id b ||
-        B.isPrefixOf cluster_id b ||
-        B.isPrefixOf tracks_id b ||
-        B.isPrefixOf info_id b of
-        True -> b
-        False -> resync $ B.dropWhile dropper next
+    result = if
+            b == B.empty ||
+            B.isPrefixOf segment_id b ||
+            B.isPrefixOf cluster_id b ||
+            B.isPrefixOf tracks_id b ||
+            B.isPrefixOf info_id b
+        then b
+        else resync $ B.dropWhile dropper next
 
 isThisTopLevelElementValid :: ElementClass -> Maybe Integer -> Bool
 isThisTopLevelElementValid klass (Just size) = case klass of
@@ -197,15 +197,16 @@ isThisTopLevelElementValid klass (Just size) = case klass of
         ETMaster -> True -- master elements can be big and usually have long IDs
         ETTextAscii -> size < 102400
         ETTextUtf8 -> size < 1024000
+        ETFlatten -> True
         _ -> size < 30 -- numeric things should be small
 isThisTopLevelElementValid _ Nothing = False -- should not happen
     
     
 toHex1 :: Int -> String
-toHex1 x = highChar : lowChar : []
+toHex1 x = [highChar, lowChar]
     where
     high = (x .&. 0xF0) `shiftR` 4
-    low = (x .&. 0x0F)
+    low =   x .&. 0x0F
     toHexNibble t
         | t < 10  = chr (ord '0' + t)
         | otherwise = chr (ord 'a' + t - 10)
@@ -213,21 +214,21 @@ toHex1 x = highChar : lowChar : []
     lowChar = toHexNibble low
 
 toHex :: B.ByteString -> T.Text
-toHex = T.pack . concat . (map $ toHex1 . fromInteger . toInteger) . B.unpack
+toHex = T.pack . concatMap (toHex1 . fromInteger . toInteger) . B.unpack
     
 ebmlChildren :: MatroskaElement -> [MatroskaElement]
 ebmlChildren (MatroskaElement _ _ (ECMaster ret)) = ret
 ebmlChildren _ = []
 
--- parse_lacing function takes the content (starting from the number of laced frames) 
+-- parseLacing function takes the content (starting from the number of laced frames) 
 -- and return de-laced frames together with decreasing numbers of remaining frames
 -- 
 -- To be refacroted: handling of bad data
-parse_lacing :: MatroskaLacingType -> B.ByteString -> [B.ByteString]
-parse_lacing ltype buf = result
+parseLacing :: MatroskaLacingType -> B.ByteString -> [B.ByteString]
+parseLacing ltype buf = result
     where
     len = (fromIntegral $ B.length buf) :: Int
-    (num_laced_frames_i, rest1) = ((fromJust $ readBigEndianNumber False (B.take 1 buf))+1, B.drop 1 buf)
+    (num_laced_frames_i, rest1) = (fromJust (readBigEndianNumber False (B.take 1 buf))+1, B.drop 1 buf)
     num_laced_frames = case ltype of
         NoLacing -> 1
         _        -> fromInteger num_laced_frames_i :: Int
@@ -236,14 +237,14 @@ parse_lacing ltype buf = result
         XiphLacing -> readXiphLengths 0 num_laced_frames rest1
         EbmlLacing -> readEbmlLengths True 0 0 num_laced_frames rest1
         FixedSizeLacing -> (
-                take num_laced_frames $ repeat $ (fromIntegral $ B.length rest2) `div` num_laced_frames,
+                replicate num_laced_frames $ fromIntegral (B.length rest2) `div` num_laced_frames,
                 rest1
                 )
 
     readXiphLengths :: Int -> Int -> B.ByteString -> ([Int], B.ByteString)
     --                 accumulated length -> more subframes -> buffer -> (length list, data_after_lengths)
     readXiphLengths acc 1 b = ([len - acc], b)
-    readXiphLengths acc n b = ((thislen:tail1), finalrest)
+    readXiphLengths acc n b = (thislen:tail1, finalrest)
         where 
         (tail1, finalrest) = readXiphLengths (acc+thislen) (n-1) rest
         (thislen_i, rest) = fromJust $ readXiphLacingNumber b
@@ -252,7 +253,7 @@ parse_lacing ltype buf = result
     readEbmlLengths :: Bool -> Int -> Int -> Int -> B.ByteString -> ([Int], B.ByteString)
     --                 first_subframe? -> prevous_length -> accumulated length -> more subframes -> buffer -> (length list, data_after_lengths)
     readEbmlLengths _        _    acc 1 b = ([len - acc], b)
-    readEbmlLengths is_first prev acc n b = ((thislen:tail1), finalrest)
+    readEbmlLengths is_first prev acc n b = (thislen:tail1, finalrest)
         where 
         number_type = if is_first then ENUnsigned else ENSigned
         (thislen_i, rest) = fromJust $ readEbmlNumber number_type b
@@ -268,24 +269,24 @@ parse_lacing ltype buf = result
 
 
 parseMkv1 :: ParserState -> Maybe (MatroskaEvent, ParserState)
-parseMkv1 state = result $ ps_mode state
+parseMkv1 state = result $ psMode state
     where
-    maybe_element = tryParseEbml1 $ ps_buffer state
+    maybe_element = tryParseEbml1 $ psBuffer state
     result ReadEBML = case maybe_element of
-        Nothing -> case B.empty == ps_buffer state of
-            True -> Nothing -- really eof of file
-            False -> -- need to resync 
-                Just (MEResync, state {ps_buffer = resync $ ps_buffer state})
+        Nothing -> if B.empty == psBuffer state
+            then Nothing -- really eof of file
+            else -- need to resync 
+                Just (MEResync, state {psBuffer = resync $ psBuffer state})
         Just (element, tail1) ->
-            case isThisTopLevelElementValid (meClass element) (meSize element) of
-            False ->  Just (MEResync, state {ps_buffer = resync $ ps_buffer state})
-            True  -> Just (MEEbmlElement element, state {
-                    ps_element = Just element,
-                    ps_buffer  = tail1, 
-                    ps_mode    = HandleEBML })
-    result HandleEBML = Just (msg, new_state {ps_element = Nothing, ps_mode = ReadEBML})
+            if not $ isThisTopLevelElementValid (meClass element) (meSize element)
+                then Just (MEResync, state {psBuffer = resync $ psBuffer state})
+                else Just (MEEbmlElement element, state {
+                    psElement = Just element,
+                    psBuffer  = tail1, 
+                    psMode    = HandleEBML })
+    result HandleEBML = Just (msg, new_state {psElement = Nothing, psMode = ReadEBML})
         where
-        element = fromJust $ ps_element state
+        element = fromJust $ psElement state
         klass =  meClass element
         (msg, new_state) = case klass of
             EEInfo -> handle_info
@@ -298,7 +299,7 @@ parseMkv1 state = result $ ps_mode state
     handle_info :: (MatroskaEvent, ParserState)
     handle_info = (MEInfo info, new_state)
         where
-        entries = ebmlChildren $ fromJust $ ps_element state
+        entries = ebmlChildren $ fromJust $ psElement state
         handle_info_entry :: (ParserState, Info) -> MatroskaElement -> (ParserState, Info)
         handle_info_entry (ps, i) (MatroskaElement kl  _ content ) = hie2 kl content
             where
@@ -308,10 +309,10 @@ parseMkv1 state = result $ ps_mode state
             hie2 EESegmentUID (ECBinary t)   = (ps, i{iSegmentUid=Just $ toHex t})
             hie2 EETitle (ECTextUtf8 t)      = (ps, i{iTitle=Just t})
             hie2 EETimecodeScale (ECUnsigned t) = 
-                (ps{ps_timecode_scale=t}, i{iTimecodeScale=t})
+                (ps{psTimecodeScale=t}, i{iTimecodeScale=t})
             hie2 _ _ = (ps, i)
         initial_info = Info {
-             iTimecodeScale = ps_timecode_scale state
+             iTimecodeScale = psTimecodeScale state
             ,iMuxingApplication = Nothing
             ,iWritingApplication = Nothing
             ,iDuration = Nothing
@@ -325,7 +326,7 @@ parseMkv1 state = result $ ps_mode state
     handle_tracks :: (MatroskaEvent, ParserState)
     handle_tracks = (METracks tracks, state)
         where
-        entries = ebmlChildren $ fromJust $ ps_element state
+        entries = ebmlChildren $ fromJust $ psElement state
         handle_track_entry :: Track -> MatroskaElement -> Track
         handle_track_entry i (MatroskaElement kl _ content ) = hte2 kl content
             where
@@ -392,7 +393,7 @@ parseMkv1 state = result $ ps_mode state
     handle_simpleBlock :: (MatroskaEvent, ParserState)
     handle_simpleBlock = (msg, state)    
         where
-        buf = (\(ECBinary x) -> x) $ meContent $ fromJust $ ps_element state
+        buf = (\(ECBinary x) -> x) $ meContent $ fromJust $ psElement state
         msg = case handle_frame Nothing buf of
             Nothing -> MENoop
             Just f -> MEFrame f
@@ -401,7 +402,7 @@ parseMkv1 state = result $ ps_mode state
     handle_blockGroup :: (MatroskaEvent, ParserState)
     handle_blockGroup = (msg, state)    
         where
-        entries = ebmlChildren $ fromJust $ ps_element state
+        entries = ebmlChildren $ fromJust $ psElement state
         durationEl = find (\x -> EEBlockDuration == meClass x) entries
         duration :: Maybe Integer
         duration = durationEl >>= (\(MatroskaElement _ _ (ECUnsigned x)) -> return x)
@@ -424,15 +425,15 @@ parseMkv1 state = result $ ps_mode state
             where
             contents :: [B.ByteString] -- subframe and number of remaining subframes in the lace
             contents = case flags .&. 0x06 of
-                0x00 -> parse_lacing NoLacing rest3 --  equals to [(rest3, 0)]
-                0x02 -> parse_lacing XiphLacing rest3
-                0x04 -> parse_lacing FixedSizeLacing rest3
-                0x06 -> parse_lacing EbmlLacing rest3
+                0x00 -> parseLacing NoLacing rest3 --  equals to [(rest3, 0)]
+                0x02 -> parseLacing XiphLacing rest3
+                0x04 -> parseLacing FixedSizeLacing rest3
+                0x06 -> parseLacing EbmlLacing rest3
                 _    -> error "Improbable lacing flags"
 
 
-            tscale           = ps_timecode_scale state
-            cluster_timecode = ps_timecode state
+            tscale           = psTimecodeScale state
+            cluster_timecode = psTimecode state
             timecode = cluster_timecode + rel_timecode
             timecodeToSeconds x = (fromInteger (x*tscale)::Double)*0.000000001
             timecodeSeconds = timecodeToSeconds timecode
@@ -453,11 +454,11 @@ parseMkv1 state = result $ ps_mode state
     handle_timecode :: (MatroskaEvent, ParserState)
     handle_timecode = (MENoop, new_state)
         where
-        (MatroskaElement _ _ content) = fromJust $ ps_element state
+        (MatroskaElement _ _ content) = fromJust $ psElement state
         timecode = case content of
             ECUnsigned x -> x
             _ -> error "Internal error: Timecode element is not unsigned"
-        new_state = state{ps_timecode = timecode}
+        new_state = state{psTimecode = timecode}
         
 
     
@@ -468,11 +469,11 @@ parseMkv :: B.ByteString -> [MatroskaEvent]
 parseMkv input = events
     where
     initial_state = ParserState { 
-         ps_buffer         = input
-        ,ps_timecode_scale = 1000000
-        ,ps_mode           = ReadEBML
-        ,ps_element        = Nothing
-        ,ps_timecode       = 0
+         psBuffer         = input
+        ,psTimecodeScale  = 1000000
+        ,psMode           = ReadEBML
+        ,psElement        = Nothing
+        ,psTimecode       = 0
         }
     events = unfoldr parseMkv1 initial_state
     

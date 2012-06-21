@@ -35,46 +35,44 @@ unsignedBigEndianNumber n x = head1 : tail1
         where
         n' = n-1
         head1 = fromInteger $ (x `shiftR` (8*n')) .&. 0xFF 
-        tail1 = unsignedBigEndianNumber (n-1) (x .&. (complement (0xFF `shiftL` (8*n'))))
+        tail1 = unsignedBigEndianNumber (n-1) (x .&. complement (0xFF `shiftL` (8*n')))
 
 getEbmlNumberSize :: Integer -> Int
 getEbmlNumberSize x
     | x < (2^(7::Int) - 1)   =  1
-    | otherwise     = 1 + getEbmlNumberSize (((x+1) `shiftR` 7 - 1))
+    | otherwise     = 1 + getEbmlNumberSize ((x+1) `shiftR` 7 - 1)
 
 writeEbmlNumber :: EbmlNumberType -> Integer -> [Word8]
 writeEbmlNumber ENUnsigned (-1) =  [255]
 writeEbmlNumber ENUnsigned x = head1 : unsignedBigEndianNumber n' rest
     where
-    n = (getEbmlNumberSize x)
+    n = getEbmlNumberSize x
     n' = n-1
     first_byte = toInteger $ (x `shiftR` (8*n')) .&. 0xFF
     head1 = fromInteger $ first_byte .|. (0x80 `shiftR` (n-1))
-    rest = x .&. (complement (0xFF `shiftL` (8*n')))
+    rest = x .&. complement (0xFF `shiftL` (8*n'))
 writeEbmlNumber ENUnmodified x = head1 : unsignedBigEndianNumber n' rest
     where
     n' = (rank x - 7) `div` 7 
     first_byte = toInteger $ (x `shiftR` (8*n')) .&. 0xFF
     head1 = fromInteger first_byte
-    rest = x .&. (complement (0xFF `shiftL` (8*n')))
+    rest = x .&. complement (0xFF `shiftL` (8*n'))
     rank 0 = 0 -- just in case
     rank 1 = 0
     rank v = 1 + rank (v `shiftR` 1)
 -- quick fixed-size hack
-writeEbmlNumber ENSigned x = 0x08 : (unsignedBigEndianNumber additionalSize $ x')
+writeEbmlNumber ENSigned x = 0x08 : unsignedBigEndianNumber additionalSize x'
     where
     x' = x  + (2 ^ (6 + 7 * additionalSize) - 1)
     additionalSize = 4
     
     
-matroskaElement_raw :: EbmlElementID -> Maybe Integer -> B.ByteString -> B.ByteString
-matroskaElement_raw id_ size' content_ = B.concat [id_b, size_b, content_]
+matroskaElementRaw :: EbmlElementID -> Maybe Integer -> B.ByteString -> B.ByteString
+matroskaElementRaw id_ size' content_ = B.concat [id_b, size_b, content_]
     where
     id_b = B.pack $ writeEbmlNumber ENUnmodified id_
-    size = case size' of
-        Just x -> x
-        Nothing -> toInteger $ B.length content_
-    size_b = B.pack $ writeEbmlNumber ENUnsigned $ size
+    size = fromMaybe (toInteger $ B.length content_) size'
+    size_b = B.pack $ writeEbmlNumber ENUnsigned size
 
 
 toMatroskaDate :: Double -> Integer
@@ -90,19 +88,16 @@ bigEndianNumber :: Bool -> Integer -> [Word8]
 bigEndianNumber signed x = unsignedBigEndianNumber niceSize x'
     where
     niceSize = niceNumberSize x
-    x' = case signed of
-        False -> x
-        True -> case x < 0 of
-            False -> x
-            True -> x + (2^(8*niceSize))
-
+    x' = if signed && (x < 0)
+        then x + (2^(8*niceSize))
+        else x
 
 
 -- Convert MatroskaElement to Bytestring
 -- If size is Nothing it is auto-calculated, Use "-1" for "infinite" (for Segment)
 writeMatroskaElement :: MatroskaElement -> B.ByteString
 writeMatroskaElement (MatroskaElement kl size content) = 
-    matroskaElement_raw (lookupElementIdReverse kl) size (encodeContent content)
+    matroskaElementRaw (lookupElementIdReverse kl) size (encodeContent content)
     where
     encodeContent (ECBinary b) = b
     encodeContent (ECUnsigned b) = B.pack $ bigEndianNumber False  b
@@ -142,11 +137,11 @@ rawFrame rel_timecode additional_flags track buffers = B.concat [
     ,B.pack $ unsignedBigEndianNumber 2 rel_timecode'
     ,B.pack [flags]
     ,B.pack lacing
-    ,B.concat $ buffers]
+    ,B.concat buffers]
     where
-    rel_timecode' = case rel_timecode < 0 of
-        False -> rel_timecode
-        True -> rel_timecode + 0x8000
+    rel_timecode' = if rel_timecode < 0
+        then rel_timecode
+        else rel_timecode + 0x8000
     flags_xiph = bit 1
     flags = flags_xiph .|. additional_flags
     n = fromIntegral (length buffers ) :: Word8
@@ -155,12 +150,12 @@ rawFrame rel_timecode additional_flags track buffers = B.concat [
     xiph :: Int -> [Word8]
     xiph x
         | x < 255   = [fromIntegral x]
-        | otherwise = 255:(xiph (x-255))
-    lacing = (n-1) : (concat $ map (xiph . fromIntegral) lengths)
+        | otherwise = 255 : xiph (x-255)
+    lacing = n-1 : concatMap (xiph . fromIntegral) lengths
 
 
 toMatroskaTimecode :: Integer -> Double -> Integer
-toMatroskaTimecode timecode_scale timecode = floor $ (timecode * 1000000000.0) / (fromInteger timecode_scale)
+toMatroskaTimecode timecode_scale timecode = floor $ (timecode * 1000000000.0) / fromInteger timecode_scale
 
 frameCluster :: Integer -> Frame -> MatroskaElement
 frameCluster timecode_scale frame =
@@ -199,25 +194,25 @@ trackElement track =
     getTrackType TTControl   = 0x20
     getTrackType (TTUnknown t) = t
     additional_track_info = catMaybes [ Nothing
-        ,liftM (\x -> MatroskaElement EETrackUID        Nothing $ ECUnsigned  x) $ tUID track
-        ,liftM (\x -> MatroskaElement EEMinCache        Nothing $ ECUnsigned  x) $ tMinCache track
-        ,liftM (\x -> MatroskaElement EECodecPrivate    Nothing $ ECBinary    x) $ tCodecPrivate track
-        ,liftM (\x -> MatroskaElement EEDefaultDuration Nothing $ ECUnsigned $ toMatroskaTimecode' x) $ tDefaultDuration track
-        ,liftM (\x -> MatroskaElement EELanguage        Nothing $ ECTextAscii x) $ tLanguage track
-        ,if (isJust $ tVideoPixelWidth        track) then  Just videoElement else Nothing
-        ,if (isJust $ tAudioChannels          track) || 
-            (isJust $ tAudioSamplingFrequency track) then  Just audioElement else Nothing
+        ,liftM (MatroskaElement EETrackUID        Nothing . ECUnsigned) $ tUID track
+        ,liftM (MatroskaElement EEMinCache        Nothing . ECUnsigned) $ tMinCache track
+        ,liftM (MatroskaElement EECodecPrivate    Nothing . ECBinary  ) $ tCodecPrivate track
+        ,liftM (MatroskaElement EEDefaultDuration Nothing . ECUnsigned . toMatroskaTimecode') $ tDefaultDuration track
+        ,liftM (MatroskaElement EELanguage        Nothing . ECTextAscii) $ tLanguage track
+        ,if isJust (tVideoPixelWidth        track) then  Just videoElement else Nothing
+        ,if isJust (tAudioChannels          track) || 
+            isJust (tAudioSamplingFrequency track) then  Just audioElement else Nothing
         ]
     videoElement = MatroskaElement EEVideo Nothing $ ECMaster $ catMaybes [ Nothing
-        ,liftM (\x -> MatroskaElement EEPixelWidth      Nothing $ ECUnsigned  x) $ tVideoPixelWidth track
-        ,liftM (\x -> MatroskaElement EEPixelHeight     Nothing $ ECUnsigned  x) $ tVideoPixelHeight track
-        ,liftM (\x -> MatroskaElement EEDisplayWidth    Nothing $ ECUnsigned  x) $ tVideoDisplayWidth track
-        ,liftM (\x -> MatroskaElement EEDisplayHeight   Nothing $ ECUnsigned  x) $ tVideoDisplayHeight track
+        ,liftM (MatroskaElement EEPixelWidth      Nothing . ECUnsigned) $ tVideoPixelWidth track
+        ,liftM (MatroskaElement EEPixelHeight     Nothing . ECUnsigned) $ tVideoPixelHeight track
+        ,liftM (MatroskaElement EEDisplayWidth    Nothing . ECUnsigned) $ tVideoDisplayWidth track
+        ,liftM (MatroskaElement EEDisplayHeight   Nothing . ECUnsigned) $ tVideoDisplayHeight track
         ]
     audioElement = MatroskaElement EEAudio Nothing $ ECMaster $ catMaybes [ Nothing
-        ,liftM (\x -> MatroskaElement EESamplingFrequency       Nothing $ ECFloat x) $ tAudioSamplingFrequency track
-        ,liftM (\x -> MatroskaElement EEOutputSamplingFrequency Nothing $ ECFloat x) $ tAudioOutputSamplingFrequency track
-        ,liftM (\x -> MatroskaElement EEChannels                Nothing $ ECUnsigned x) $ tAudioChannels track
+        ,liftM (MatroskaElement EESamplingFrequency       Nothing . ECFloat) $ tAudioSamplingFrequency track
+        ,liftM (MatroskaElement EEOutputSamplingFrequency Nothing . ECFloat) $ tAudioOutputSamplingFrequency track
+        ,liftM (MatroskaElement EEChannels                Nothing . ECUnsigned) $ tAudioChannels track
         ]
     toMatroskaTimecode' x = floor (x * 1000000000.0)
 
@@ -226,14 +221,14 @@ tracksElement tracks = MatroskaElement EETracks Nothing $ ECMaster $ map trackEl
 
 infoElement :: Info -> MatroskaElement
 infoElement info = MatroskaElement EEInfo Nothing $ ECMaster $ 
-    (             MatroskaElement EETimecodeScale   Nothing $ ECUnsigned     $ iTimecodeScale info) :
+    MatroskaElement EETimecodeScale   Nothing (ECUnsigned     $ iTimecodeScale info) :
     catMaybes [ Nothing
-    ,liftM (\x -> MatroskaElement EEMuxingApp       Nothing $ ECTextUtf8  x) $ iMuxingApplication info
-    ,liftM (\x -> MatroskaElement EEWritingApp      Nothing $ ECTextUtf8  x) $ iWritingApplication info
-    ,liftM (\x -> MatroskaElement EEDuration        Nothing $ ECFloat     x) $ iDuration info
-    ,liftM (\x -> MatroskaElement EEDateUTC         Nothing $ ECDate      x) $ iDate info
-    ,liftM (\x -> MatroskaElement EETitle           Nothing $ ECTextUtf8  x) $ iTitle info
-    ,liftM (\x -> MatroskaElement EESegmentUID      Nothing $ ECBinary $ fromHex x) $ iSegmentUid info
+    ,liftM (MatroskaElement EEMuxingApp       Nothing . ECTextUtf8 ) $ iMuxingApplication info
+    ,liftM (MatroskaElement EEWritingApp      Nothing . ECTextUtf8 ) $ iWritingApplication info
+    ,liftM (MatroskaElement EEDuration        Nothing . ECFloat    ) $ iDuration info
+    ,liftM (MatroskaElement EEDateUTC         Nothing . ECDate     ) $ iDate info
+    ,liftM (MatroskaElement EETitle           Nothing . ECTextUtf8 ) $ iTitle info
+    ,liftM (MatroskaElement EESegmentUID      Nothing . ECBinary . fromHex) $ iSegmentUid info
     ]
     where
     fromHex = B.pack . fromHex' . T.unpack
@@ -244,17 +239,17 @@ infoElement info = MatroskaElement EEInfo Nothing $ ECMaster $
         bh = nibble h
         bl = nibble l
         nibble x
-            | '0' <= x && x <= '9' = fromIntegral $ ord(x) - ord('0')
-            | 'A' <= x && x <= 'F' = fromIntegral $ ord(x) - ord('A') + 10
-            | 'a' <= x && x <= 'f' = fromIntegral $ ord(x) - ord('a') + 10
+            | '0' <= x && x <= '9' = fromIntegral $ ord x - ord '0'
+            | 'A' <= x && x <= 'F' = fromIntegral $ ord x - ord 'A' + 10
+            | 'a' <= x && x <= 'f' = fromIntegral $ ord x - ord 'a' + 10
             | otherwise            = 0x00 -- bad hex nibble
     fromHex' [] = []
     fromHex' [_] = error "Odd number of hex digits?"
 
 -- Check if "muxingApplication" exists and contains "HsMkv"
 -- add/append "HsMkv" if not
-tweak_info :: Info -> Info
-tweak_info info = new_info
+tweakInfo :: Info -> Info
+tweakInfo info = new_info
     where
     have_MkvGen_in_muxingApp = case iMuxingApplication info of
         Nothing -> False
@@ -269,7 +264,7 @@ tweak_info info = new_info
 
 eventToElement :: Integer -> MatroskaEvent -> Maybe MatroskaElement
 eventToElement timescale (MEInfo info) = Just $
-    infoElement $ tweak_info $ info {iTimecodeScale=timescale}
+    infoElement $ tweakInfo $ info {iTimecodeScale=timescale}
 eventToElement _ (METracks tracks) = Just $
     tracksElement tracks
 eventToElement timescale (MEFrame frame) = Just $
@@ -281,13 +276,13 @@ writeMkv :: [MatroskaEvent] -> B.ByteString
 writeMkv events = B.concat (matroskaHeader:unfoldr handle (events,1000000))
     where
     handle :: ([MatroskaEvent], Integer) -> Maybe (B.ByteString, ([MatroskaEvent], Integer))
-    handle (((MEInfo info):tail1), _) = 
-        Just (writeMatroskaElement $ infoElement $ tweak_info info, (tail1, iTimecodeScale info))
-    handle ((METracks tracks):tail1, timescale) = 
+    handle ( MEInfo info   : tail1, _) = 
+        Just (writeMatroskaElement $ infoElement $ tweakInfo info, (tail1, iTimecodeScale info))
+    handle (METracks tracks: tail1, timescale) = 
         Just (writeMatroskaElement $ tracksElement tracks,          (tail1, timescale))
-    handle ((MEFrame  frame ):tail1, timescale) = 
+    handle (MEFrame  frame : tail1, timescale) = 
         Just (writeMatroskaElement $ frameCluster timescale frame,  (tail1, timescale))
-    handle ((_:tail1), timescale) = 
+    handle (_:tail1, timescale) = 
         Just (B.empty, (tail1, timescale))
     handle ([], _) = Nothing
 
