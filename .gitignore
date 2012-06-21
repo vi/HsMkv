@@ -1,7 +1,11 @@
 mkvuser
 MkvExample
 example_print
-example_transmux
+ExamplePrint
+ExampleTransmux
+ExampleUdpSend
+ExampleUdpRecv
+examples
 *.hi
 *.o
 out
