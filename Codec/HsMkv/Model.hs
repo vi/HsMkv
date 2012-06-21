@@ -20,13 +20,13 @@ import Codec.HsMkv.MkvTabular
 -- Description of some events
 
 data Info = Info {
-     i_timecodeScale :: Integer
-    ,i_muxingApplication :: Maybe T.Text
-    ,i_writingApplication :: Maybe T.Text
-    ,i_duration :: Maybe Double
-    ,i_date :: Maybe Double
-    ,i_segmentUid :: Maybe T.Text -- hex encoded
-    ,i_title :: Maybe T.Text
+     iTimecodeScale :: Integer
+    ,iMuxingApplication :: Maybe T.Text
+    ,iWritingApplication :: Maybe T.Text
+    ,iDuration :: Maybe Double
+    ,iDate :: Maybe Double
+    ,iSegmentUid :: Maybe T.Text -- hex encoded
+    ,iTitle :: Maybe T.Text
 } deriving (Show)
 
 blankInfo :: Info
@@ -47,22 +47,22 @@ data TrackType =
 
 
 data Track = Track {
-      t_type :: TrackType
-    , t_number :: Integer
-    , t_codecId :: T.Text
+      tType :: TrackType
+    , tNumber :: Integer
+    , tCodecId :: T.Text
 
-    , t_UID :: Maybe Integer
-    , t_minCache :: Maybe Integer
-    , t_codecPrivate :: Maybe B.ByteString
-    , t_defaultDuration :: Maybe Double
-    , t_language :: Maybe T.Text
-    , t_videoPixelWidth :: Maybe Integer
-    , t_videoPixelHeight :: Maybe Integer
-    , t_videoDisplayWidth :: Maybe Integer
-    , t_videoDisplayHeight :: Maybe Integer
-    , t_audioSamplingFrequency :: Maybe Double
-    , t_audioOutputSamplingFrequency :: Maybe Double
-    , t_audioChannels :: Maybe Integer
+    , tUID :: Maybe Integer
+    , tMinCache :: Maybe Integer
+    , tCodecPrivate :: Maybe B.ByteString
+    , tDefaultDuration :: Maybe Double
+    , tLanguage :: Maybe T.Text
+    , tVideoPixelWidth :: Maybe Integer
+    , tVideoPixelHeight :: Maybe Integer
+    , tVideoDisplayWidth :: Maybe Integer
+    , tVideoDisplayHeight :: Maybe Integer
+    , tAudioSamplingFrequency :: Maybe Double
+    , tAudioOutputSamplingFrequency :: Maybe Double
+    , tAudioChannels :: Maybe Integer
     } deriving (Show)
 
 blankTrack :: Track
@@ -70,13 +70,13 @@ blankTrack = Track (TTUnknown (-1)) (-1) T.empty Nothing Nothing Nothing Nothing
     Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing
 
 data Frame = Frame {
-     f_trackNumber :: Integer
-    ,f_timeCode :: Double
-    ,f_data :: [B.ByteString]
-    ,f_duration :: Maybe Double
-    ,f_invisible :: Bool
-    ,f_discardable :: Bool
-    ,f_keyframe :: Bool
+     fTrackNumber :: Integer
+    ,fTimeCode :: Double
+    ,fData :: [B.ByteString]
+    ,fDuration :: Maybe Double
+    ,fInvisible :: Bool
+    ,fDiscardable :: Bool
+    ,fKeyframe :: Bool
 } deriving (Show)
 
 blankFrame :: Frame
@@ -95,9 +95,9 @@ data MatroskaEvent =
 
 
 data MatroskaElement = MatroskaElement {
-     me_class :: ElementClass
-    ,me_size :: Maybe Integer
-    ,me_content :: ElementContent  
+     meClass :: ElementClass
+    ,meSize :: Maybe Integer
+    ,meContent :: ElementContent  
     } deriving (Show, Eq)
 
 data ElementContent = 

@@ -26,39 +26,39 @@ demoHandler (M.MEInfo inf) = let
     printf_m fmt = maybe (return ()) (printf fmt)
     in do
         printf   "Info\n"
-        printf_m "  Title: %s\n"               $ liftM T.unpack $ M.i_title inf
-        printf   "  Timecode scale: %d\n"                       $ M.i_timecodeScale inf
-        printf_m "  Muxing application: %s\n"  $ liftM T.unpack $ M.i_muxingApplication inf
-        printf_m "  Writing application: %s\n" $ liftM T.unpack $ M.i_writingApplication inf
-        printf_m "  Duration: %g\n"                             $ M.i_duration inf
-        printf_m "  Segment UID: %s\n"         $ liftM T.unpack $ M.i_segmentUid inf
+        printf_m "  Title: %s\n"               $ liftM T.unpack $ M.iTitle inf
+        printf   "  Timecode scale: %d\n"                       $ M.iTimecodeScale inf
+        printf_m "  Muxing application: %s\n"  $ liftM T.unpack $ M.iMuxingApplication inf
+        printf_m "  Writing application: %s\n" $ liftM T.unpack $ M.iWritingApplication inf
+        printf_m "  Duration: %g\n"                             $ M.iDuration inf
+        printf_m "  Segment UID: %s\n"         $ liftM T.unpack $ M.iSegmentUid inf
 
 demoHandler (M.METracks tracks) = mapM_ ttt tracks
     where
     ttt :: M.Track -> IO()
     ttt t = do
-        printf "Track %d\n"                    $ M.t_number t
-        printf "  Type: %s\n"      $ show      $ M.t_type t
-        printf "  CodecID: %s\n"   $ T.unpack  $ M.t_codecId t
-        case M.t_language t of
+        printf "Track %d\n"                    $ M.tNumber t
+        printf "  Type: %s\n"      $ show      $ M.tType t
+        printf "  CodecID: %s\n"   $ T.unpack  $ M.tCodecId t
+        case M.tLanguage t of
             Just x -> printf "  Language: %s\n"  $ T.unpack x
             Nothing -> return ()
 
 demoHandler (M.MEFrame frame) =
-    printf "Frame for %d %s%s%s ts=%.06f lace=%d %s len=%d data=%s...\n" tn f_i f_d f_k ts lace dur len bufstr
+    printf "Frame for %d %s%s%s ts=%.06f lace=%d %s len=%d data=%s...\n" tn fI fD fK ts lace dur len bufstr
         where
-        tn   =           M.f_trackNumber frame
-        ts   =           M.f_timeCode frame
-        buf = B.concat $ M.f_data frame
+        tn   =           M.fTrackNumber frame
+        ts   =           M.fTimeCode frame
+        buf = B.concat $ M.fData frame
         bufstr =  T.unpack $ M.toHex $ B.take 10 buf
-        lace = length $  M.f_data frame
-        len = B.length $ B.concat $ M.f_data frame
-        dur = case M.f_duration frame of
+        lace = length $  M.fData frame
+        len = B.length $ B.concat $ M.fData frame
+        dur = case M.fDuration frame of
             Nothing -> ""
             Just x -> printf "dur=%.06f" x
-        f_i = if M.f_invisible   frame then "i" else " "
-        f_d = if M.f_discardable frame then "D" else " "
-        f_k = if M.f_keyframe    frame then "K" else " "
+        fI = if M.fInvisible   frame then "i" else " "
+        fD = if M.fDiscardable frame then "D" else " "
+        fK = if M.fKeyframe    frame then "K" else " "
 
 demoHandler _ = return ()
 

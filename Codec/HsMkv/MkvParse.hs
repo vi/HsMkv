@@ -277,7 +277,7 @@ parseMkv1 state = result $ ps_mode state
             False -> -- need to resync 
                 Just (MEResync, state {ps_buffer = resync $ ps_buffer state})
         Just (element, tail1) ->
-            case isThisTopLevelElementValid (me_class element) (me_size element) of
+            case isThisTopLevelElementValid (meClass element) (meSize element) of
             False ->  Just (MEResync, state {ps_buffer = resync $ ps_buffer state})
             True  -> Just (MEEbmlElement element, state {
                     ps_element = Just element,
@@ -286,7 +286,7 @@ parseMkv1 state = result $ ps_mode state
     result HandleEBML = Just (msg, new_state {ps_element = Nothing, ps_mode = ReadEBML})
         where
         element = fromJust $ ps_element state
-        klass =  me_class element
+        klass =  meClass element
         (msg, new_state) = case klass of
             EEInfo -> handle_info
             EETracks -> handle_tracks
@@ -302,22 +302,22 @@ parseMkv1 state = result $ ps_mode state
         handle_info_entry :: (ParserState, Info) -> MatroskaElement -> (ParserState, Info)
         handle_info_entry (ps, i) (MatroskaElement kl  _ content ) = hie2 kl content
             where
-            hie2 EEMuxingApp (ECTextUtf8 t)  = (ps, i{i_muxingApplication=Just t})
-            hie2 EEWritingApp (ECTextUtf8 t) = (ps, i{i_writingApplication=Just t})
-            hie2 EEDuration   (ECFloat t)    = (ps, i{i_duration=Just t})
-            hie2 EESegmentUID (ECBinary t)   = (ps, i{i_segmentUid=Just $ toHex t})
-            hie2 EETitle (ECTextUtf8 t)      = (ps, i{i_title=Just t})
+            hie2 EEMuxingApp (ECTextUtf8 t)  = (ps, i{iMuxingApplication=Just t})
+            hie2 EEWritingApp (ECTextUtf8 t) = (ps, i{iWritingApplication=Just t})
+            hie2 EEDuration   (ECFloat t)    = (ps, i{iDuration=Just t})
+            hie2 EESegmentUID (ECBinary t)   = (ps, i{iSegmentUid=Just $ toHex t})
+            hie2 EETitle (ECTextUtf8 t)      = (ps, i{iTitle=Just t})
             hie2 EETimecodeScale (ECUnsigned t) = 
-                (ps{ps_timecode_scale=t}, i{i_timecodeScale=t})
+                (ps{ps_timecode_scale=t}, i{iTimecodeScale=t})
             hie2 _ _ = (ps, i)
         initial_info = Info {
-             i_timecodeScale = ps_timecode_scale state
-            ,i_muxingApplication = Nothing
-            ,i_writingApplication = Nothing
-            ,i_duration = Nothing
-            ,i_date = Nothing
-            ,i_segmentUid = Nothing
-            ,i_title = Nothing
+             iTimecodeScale = ps_timecode_scale state
+            ,iMuxingApplication = Nothing
+            ,iWritingApplication = Nothing
+            ,iDuration = Nothing
+            ,iDate = Nothing
+            ,iSegmentUid = Nothing
+            ,iTitle = Nothing
             }
         (new_state, info) = foldl' handle_info_entry (state, initial_info) entries
         
@@ -329,31 +329,31 @@ parseMkv1 state = result $ ps_mode state
         handle_track_entry :: Track -> MatroskaElement -> Track
         handle_track_entry i (MatroskaElement kl _ content ) = hte2 kl content
             where
-            hte2 EETrackNumber (ECUnsigned t)  = i{t_number=t}
-            hte2 EETrackUID (ECUnsigned t)  = i{t_UID=Just t}
-            hte2 EECodecID (ECTextAscii t)  = i{t_codecId=t}
-            hte2 EECodecPrivate (ECBinary t) = i{t_codecPrivate=Just t}
+            hte2 EETrackNumber (ECUnsigned t)  = i{tNumber=t}
+            hte2 EETrackUID (ECUnsigned t)  = i{tUID=Just t}
+            hte2 EECodecID (ECTextAscii t)  = i{tCodecId=t}
+            hte2 EECodecPrivate (ECBinary t) = i{tCodecPrivate=Just t}
             hte2 EEDefaultDuration (ECUnsigned t) = 
-                i{t_defaultDuration=Just $ fromInteger t / 1000000000.0}
-            hte2 EEMinCache (ECUnsigned t)  = i{t_minCache=Just t}
-            hte2 EELanguage (ECTextAscii t) = i{t_language=Just t}
+                i{tDefaultDuration=Just $ fromInteger t / 1000000000.0}
+            hte2 EEMinCache (ECUnsigned t)  = i{tMinCache=Just t}
+            hte2 EELanguage (ECTextAscii t) = i{tLanguage=Just t}
             hte2 EEVideo (ECMaster t) = foldl' hte2_video i t
                 where
-                hte2_video j (MatroskaElement EEPixelWidth    _ (ECUnsigned d)) = j{t_videoPixelWidth = Just d}
-                hte2_video j (MatroskaElement EEPixelHeight   _ (ECUnsigned d)) = j{t_videoPixelHeight = Just d}
-                hte2_video j (MatroskaElement EEDisplayWidth  _ (ECUnsigned d)) = j{t_videoDisplayWidth = Just d}
-                hte2_video j (MatroskaElement EEDisplayHeight _ (ECUnsigned d)) = j{t_videoDisplayHeight = Just d}
+                hte2_video j (MatroskaElement EEPixelWidth    _ (ECUnsigned d)) = j{tVideoPixelWidth = Just d}
+                hte2_video j (MatroskaElement EEPixelHeight   _ (ECUnsigned d)) = j{tVideoPixelHeight = Just d}
+                hte2_video j (MatroskaElement EEDisplayWidth  _ (ECUnsigned d)) = j{tVideoDisplayWidth = Just d}
+                hte2_video j (MatroskaElement EEDisplayHeight _ (ECUnsigned d)) = j{tVideoDisplayHeight = Just d}
                 hte2_video j _ = j
             hte2 EEAudio (ECMaster t) = foldl' hte2_audio i t
                 where
                 hte2_audio j (MatroskaElement EESamplingFrequency       _ (ECFloat d))    
-                    = j{t_audioSamplingFrequency       = Just d}
+                    = j{tAudioSamplingFrequency       = Just d}
                 hte2_audio j (MatroskaElement EEOutputSamplingFrequency _ (ECFloat d))
-                    = j{t_audioOutputSamplingFrequency = Just d}
+                    = j{tAudioOutputSamplingFrequency = Just d}
                 hte2_audio j (MatroskaElement EEChannels                _ (ECUnsigned d))
-                    = j{t_audioChannels                = Just d}
+                    = j{tAudioChannels                = Just d}
                 hte2_audio j _ = j
-            hte2 EETrackType (ECUnsigned t) = i{t_type = interpret_tt t}
+            hte2 EETrackType (ECUnsigned t) = i{tType = interpret_tt t}
             hte2 _ _ = i
         interpret_tt 1 = TTVideo
         interpret_tt 2 = TTAudio
@@ -364,22 +364,22 @@ parseMkv1 state = result $ ps_mode state
         interpret_tt 0x20 = TTControl
         interpret_tt x = TTUnknown x
         initial_track = Track {
-             t_number = -1
-            ,t_type = TTUnknown $ -1
-            ,t_codecId = T.empty
+             tNumber = -1
+            ,tType = TTUnknown $ -1
+            ,tCodecId = T.empty
 
-            ,t_UID = Nothing
-            ,t_codecPrivate = Nothing
-            ,t_defaultDuration = Nothing
-            ,t_minCache = Nothing
-            ,t_language = Nothing
-            ,t_videoPixelWidth = Nothing
-            ,t_videoPixelHeight = Nothing
-            ,t_videoDisplayWidth = Nothing
-            ,t_videoDisplayHeight = Nothing
-            ,t_audioSamplingFrequency = Nothing
-            ,t_audioOutputSamplingFrequency = Nothing
-            ,t_audioChannels = Nothing
+            ,tUID = Nothing
+            ,tCodecPrivate = Nothing
+            ,tDefaultDuration = Nothing
+            ,tMinCache = Nothing
+            ,tLanguage = Nothing
+            ,tVideoPixelWidth = Nothing
+            ,tVideoPixelHeight = Nothing
+            ,tVideoDisplayWidth = Nothing
+            ,tVideoDisplayHeight = Nothing
+            ,tAudioSamplingFrequency = Nothing
+            ,tAudioOutputSamplingFrequency = Nothing
+            ,tAudioChannels = Nothing
             }
         handle_one_track :: MatroskaElement -> Track
         handle_one_track (MatroskaElement _ _ (ECMaster x)) =
@@ -392,7 +392,7 @@ parseMkv1 state = result $ ps_mode state
     handle_simpleBlock :: (MatroskaEvent, ParserState)
     handle_simpleBlock = (msg, state)    
         where
-        buf = (\(ECBinary x) -> x) $ me_content $ fromJust $ ps_element state
+        buf = (\(ECBinary x) -> x) $ meContent $ fromJust $ ps_element state
         msg = case handle_frame Nothing buf of
             Nothing -> MENoop
             Just f -> MEFrame f
@@ -402,10 +402,10 @@ parseMkv1 state = result $ ps_mode state
     handle_blockGroup = (msg, state)    
         where
         entries = ebmlChildren $ fromJust $ ps_element state
-        durationEl = find (\x -> EEBlockDuration == me_class x) entries
+        durationEl = find (\x -> EEBlockDuration == meClass x) entries
         duration :: Maybe Integer
         duration = durationEl >>= (\(MatroskaElement _ _ (ECUnsigned x)) -> return x)
-        blockEl = find (\x -> EEBlock == me_class x) entries
+        blockEl = find (\x -> EEBlock == meClass x) entries
         buf = blockEl >>= (\(MatroskaElement _ _ (ECBinary x)) -> return x)
         msg = case buf >>= handle_frame duration of
             Nothing -> MENoop
@@ -440,13 +440,13 @@ parseMkv1 state = result $ ps_mode state
             flag_invisible   = testBit flags 3
             flag_keyframe    = testBit flags 7
             frame = Frame {
-                 f_trackNumber = track_number
-                ,f_timeCode = timecodeSeconds
-                ,f_duration = liftM timecodeToSeconds  dur
-                ,f_data = contents
-                ,f_discardable = flag_discardable
-                ,f_keyframe = flag_keyframe
-                ,f_invisible = flag_invisible
+                 fTrackNumber = track_number
+                ,fTimeCode = timecodeSeconds
+                ,fDuration = liftM timecodeToSeconds  dur
+                ,fData = contents
+                ,fDiscardable = flag_discardable
+                ,fKeyframe = flag_keyframe
+                ,fInvisible = flag_invisible
                 }
         
 

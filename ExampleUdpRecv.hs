@@ -54,20 +54,20 @@ mainUdpRecv args =
                     fromJust $ M.eventToElement 1000000 event)
 
             outputEvent $ M.MEInfo M.blankInfo {
-                 M.i_writingApplication = Just $ T.pack "HsMkv example_udp_recv"
-                ,M.i_date = Just now
+                 M.iWritingApplication = Just $ T.pack "HsMkv example_udp_recv"
+                ,M.iDate = Just now
                 }   
             outputEvent $ M.METracks [M.blankTrack {
-                M.t_number = 1
-               ,M.t_UID = Just 1
-               ,M.t_type = track_type
-               ,M.t_codecId = codecID
+                M.tNumber = 1
+               ,M.tUID = Just 1
+               ,M.tType = track_type
+               ,M.tCodecId = codecID
                }]    
 
             let handleBuffer (buf, timestamp) = outputEvent $ M.MEFrame M.blankFrame {
-                 M.f_trackNumber = 1
-                ,M.f_timeCode = timestamp
-                ,M.f_data = [buf]
+                 M.fTrackNumber = 1
+                ,M.fTimeCode = timestamp
+                ,M.fData = [buf]
                 }
 
             process handleBuffer sock

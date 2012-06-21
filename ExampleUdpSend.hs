@@ -32,27 +32,27 @@ udpSendHandlerHandler initial_time track sock addr = h
     h (tb, M.MEResync:tail1) = Just (printf "Resync\n", (tb, tail1))
     h (tb, M.MEFrame f : tail1) = Just (event, (Just timebase, tail1))
         where
-        event = if M.f_trackNumber f == track
+        event = if M.fTrackNumber f == track
                 then do
                     now <- getPOSIXTime
                     let now' = realToFrac now
                     let how_much_to_sleep = floor $ 1000000*(ts_of_this_frame + timebase - now')
                     let how_much_to_sleep' = if how_much_to_sleep < 0 then 0 else how_much_to_sleep
-                    printf "%d" $ length $ M.f_data f
+                    printf "%d" $ length $ M.fData f
                     hFlush stdout
                     threadDelay how_much_to_sleep'
-                    NB.sendTo sock (convertByteString $ B.concat $ M.f_data f) addr
+                    NB.sendTo sock (convertByteString $ B.concat $ M.fData f) addr
                     return ()
                 else do
                     printf "."
                     hFlush stdout
         timebase = fromMaybe (initial_time - ts_of_this_frame) tb
-        ts_of_this_frame  = M.f_timeCode f
+        ts_of_this_frame  = M.fTimeCode f
     h (tb, M.METracks tracks : tail1) = Just (event, (tb, tail1))
         where
-        event = case find (\x -> M.t_number x == track) tracks of
+        event = case find (\x -> M.tNumber x == track) tracks of
             Nothing -> return ()  -- our track is not found
-            Just my_track -> case M.t_codecPrivate my_track of
+            Just my_track -> case M.tCodecPrivate my_track of
                 Nothing -> return () -- no "CodecPrivate" for our track
                 Just x' -> void $ NB.sendTo sock (convertByteString x') addr
     h (tb, _:tail1) = Just (return (), (tb, tail1))
