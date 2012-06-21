@@ -16,7 +16,7 @@ The same list of events can be conveted back to ByteString using MkvGen.writeMkv
         f_keyframe :: Bool
     } deriving (Show)
     
-    -- See example_print.hs for more complete example
+    -- See ExamplePrint.hs for more complete example
 
 Supported features:
 
@@ -24,12 +24,22 @@ Supported features:
 *  handling TimecodeScale
 *  lacing
 *  resyncing after errors
-*  muxing (see example_transmux.hs)
+*  muxing
 
 Not supported features:
 
 *  track timecode scale multiplier
 *  seeking, cues, chapters
+*  ContentEncoding
+*  Access to various parameters of Track or Info (can be easily added probably)
+
+Included examples:
+
+* ExamplePrint - read matroska file and print info, tracks and frames
+* ExampleTransmux - read matroska file and write it
+* ExampleUdpRecv - receive UDP packets and write them as frames to matroska file (with timecodes)
+* ExampleUdpSend - read frames from matroska file and send it as UDP packets, honouring timecodes
+* examples.hs - bundle all example above in one executable
 
 
 Python version of demuxer and Matroska XML tools: https://github.com/vi/mkvparse
