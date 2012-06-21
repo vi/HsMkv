@@ -8,7 +8,7 @@ maintainer:          vi0oss@gmail.com
 category:            Codec
 build-type:          Simple
 cabal-version:       >=1.8
-extra-source-files:  example_transmux.hs example_print.hs Test.hs
+extra-source-files:  example_transmux.hs example_print.hs Test.hs example_udp_send.hs example_udp_recv.hs
 library
   exposed-modules:     Codec.HsMkv.MkvParse, Codec.HsMkv.MkvTabular, Codec.HsMkv.MkvGen, Codec.HsMkv.Model
   build-depends:       base ==4.5.*, bytestring ==0.9.*, data-binary-ieee754 ==0.4.*, text ==0.11.*
