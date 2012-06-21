@@ -10,5 +10,5 @@ import System.IO
 main :: IO ()
 main = do
     contents <- B.hGetContents System.IO.stdin
-    mkvevents <- return $ M.parseMkv contents
+    let mkvevents = M.parseMkv contents
     B.hPut System.IO.stdout $ MG.writeMkv mkvevents

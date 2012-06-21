@@ -33,18 +33,19 @@ mainUdpRecv args =
             printf "Usage: example_udp_recv type CodecID host port > matroska_file.mkv\n"
             printf "      types:  TT_Audio TT_Video TT_Subtitle TT_Complex TT_Logo TT_Button TT_Control\n"
         else withSocketsDo $ do
+            let (arg1s:arg2s:arg3s:arg4s:_) = args
             let (track_type, codecID, hostname, port) = (
-                    read $ args !! 0 :: M.TrackType, 
-                    T.pack $ args !! 1, 
-                    args !! 2,
-                    read $ args !! 3
+                    read arg1s :: M.TrackType, 
+                    T.pack arg2s, 
+                    arg3s,
+                    read   arg4s
                     )
             sock <- socket AF_INET Datagram 0
             host <- getHostByName hostname
             let port' =  fromIntegral port :: PortNumber
-            bindSocket sock (SockAddrInet port' $ hostAddress $ host)
+            bindSocket sock (SockAddrInet port' $ hostAddress host)
  
-            now <- (liftM realToFrac) getPOSIXTime
+            now <- liftM realToFrac getPOSIXTime
 
             B.hPut stdout M.matroskaHeader
 
@@ -54,7 +55,7 @@ mainUdpRecv args =
 
             outputEvent $ M.ME_Info M.blankInfo {
                  M.i_writingApplication = Just $ T.pack "HsMkv example_udp_recv"
-                ,M.i_date = Just $ now
+                ,M.i_date = Just now
                 }   
             outputEvent $ M.ME_Tracks [M.blankTrack {
                 M.t_number = 1

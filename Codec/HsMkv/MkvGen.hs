@@ -117,14 +117,14 @@ writeMatroskaElement (MatroskaElement kl size content) =
     
 
 ebmlHeader :: MatroskaElement
-ebmlHeader = MatroskaElement EE_EBML Nothing $ EC_Master [
-     MatroskaElement EE_EBMLVersion        Nothing $ EC_Unsigned 1
-    ,MatroskaElement EE_EBMLReadVersion    Nothing $ EC_Unsigned 1
-    ,MatroskaElement EE_EBMLMaxIDLength    Nothing $ EC_Unsigned 4
-    ,MatroskaElement EE_EBMLMaxSizeLength  Nothing $ EC_Unsigned 8
-    ,MatroskaElement EE_DocType            Nothing $ EC_TextAscii $ T.pack "matroska"
-    ,MatroskaElement EE_DocTypeVersion     Nothing $ EC_Unsigned 2
-    ,MatroskaElement EE_DocTypeReadVersion Nothing $ EC_Unsigned 2
+ebmlHeader = MatroskaElement EEEBML Nothing $ EC_Master [
+     MatroskaElement EEEBMLVersion        Nothing $ EC_Unsigned 1
+    ,MatroskaElement EEEBMLReadVersion    Nothing $ EC_Unsigned 1
+    ,MatroskaElement EEEBMLMaxIDLength    Nothing $ EC_Unsigned 4
+    ,MatroskaElement EEEBMLMaxSizeLength  Nothing $ EC_Unsigned 8
+    ,MatroskaElement EEDocType            Nothing $ EC_TextAscii $ T.pack "matroska"
+    ,MatroskaElement EEDocTypeVersion     Nothing $ EC_Unsigned 2
+    ,MatroskaElement EEDocTypeReadVersion Nothing $ EC_Unsigned 2
     ]
 
 
@@ -132,7 +132,7 @@ ebmlHeader = MatroskaElement EE_EBML Nothing $ EC_Master [
 matroskaHeader :: B.ByteString
 matroskaHeader = B.concat [
     writeMatroskaElement ebmlHeader,
-    writeMatroskaElement $ MatroskaElement EE_Segment (Just (-1)) $ EC_Binary B.empty
+    writeMatroskaElement $ MatroskaElement EESegment (Just (-1)) $ EC_Binary B.empty
     ]
 
 
@@ -164,13 +164,13 @@ toMatroskaTimecode timecode_scale timecode = floor $ (timecode * 1000000000.0) /
 
 frameCluster :: Integer -> Frame -> MatroskaElement
 frameCluster timecode_scale frame =
-     MatroskaElement EE_Cluster Nothing $ EC_Master [
-        MatroskaElement EE_Timecode Nothing $ EC_Unsigned $ toMatroskaTimecode' (f_timeCode frame)
+     MatroskaElement EECluster Nothing $ EC_Master [
+        MatroskaElement EETimecode Nothing $ EC_Unsigned $ toMatroskaTimecode' (f_timeCode frame)
        ,case f_duration frame of
-            Nothing -> MatroskaElement EE_SimpleBlock Nothing $ EC_Binary frameData
-            Just duration -> MatroskaElement EE_BlockGroup Nothing $ EC_Master [
-                 MatroskaElement EE_BlockDuration Nothing $ EC_Unsigned $ toMatroskaTimecode' duration
-                ,MatroskaElement EE_Block Nothing $ EC_Binary frameData 
+            Nothing -> MatroskaElement EESimpleBlock Nothing $ EC_Binary frameData
+            Just duration -> MatroskaElement EEBlockGroup Nothing $ EC_Master [
+                 MatroskaElement EEBlockDuration Nothing $ EC_Unsigned $ toMatroskaTimecode' duration
+                ,MatroskaElement EEBlock Nothing $ EC_Binary frameData 
                 ]
     ] where
     toMatroskaTimecode' :: Double -> Integer
@@ -184,10 +184,10 @@ frameCluster timecode_scale frame =
     
 trackElement :: Track -> MatroskaElement
 trackElement track =
-    MatroskaElement EE_TrackEntry Nothing (EC_Master $ additional_track_info ++ [
-         MatroskaElement EE_TrackNumber Nothing (EC_Unsigned $ t_number track)
-        ,MatroskaElement EE_TrackType Nothing (EC_Unsigned $ getTrackType $ t_type track)
-        ,MatroskaElement EE_CodecID Nothing (EC_TextAscii $ t_codecId track)
+    MatroskaElement EETrackEntry Nothing (EC_Master $ additional_track_info ++ [
+         MatroskaElement EETrackNumber Nothing (EC_Unsigned $ t_number track)
+        ,MatroskaElement EETrackType Nothing (EC_Unsigned $ getTrackType $ t_type track)
+        ,MatroskaElement EECodecID Nothing (EC_TextAscii $ t_codecId track)
         ])
     where
     getTrackType TT_Video     = 1
@@ -199,41 +199,41 @@ trackElement track =
     getTrackType TT_Control   = 0x20
     getTrackType (TT_Unknown t) = t
     additional_track_info = catMaybes [ Nothing
-        ,liftM (\x -> MatroskaElement EE_TrackUID        Nothing $ EC_Unsigned  x) $ t_UID track
-        ,liftM (\x -> MatroskaElement EE_MinCache        Nothing $ EC_Unsigned  x) $ t_minCache track
-        ,liftM (\x -> MatroskaElement EE_CodecPrivate    Nothing $ EC_Binary    x) $ t_codecPrivate track
-        ,liftM (\x -> MatroskaElement EE_DefaultDuration Nothing $ EC_Unsigned $ toMatroskaTimecode' x) $ t_defaultDuration track
-        ,liftM (\x -> MatroskaElement EE_Language        Nothing $ EC_TextAscii x) $ t_language track
+        ,liftM (\x -> MatroskaElement EETrackUID        Nothing $ EC_Unsigned  x) $ t_UID track
+        ,liftM (\x -> MatroskaElement EEMinCache        Nothing $ EC_Unsigned  x) $ t_minCache track
+        ,liftM (\x -> MatroskaElement EECodecPrivate    Nothing $ EC_Binary    x) $ t_codecPrivate track
+        ,liftM (\x -> MatroskaElement EEDefaultDuration Nothing $ EC_Unsigned $ toMatroskaTimecode' x) $ t_defaultDuration track
+        ,liftM (\x -> MatroskaElement EELanguage        Nothing $ EC_TextAscii x) $ t_language track
         ,if (isJust $ t_videoPixelWidth        track) then  Just videoElement else Nothing
         ,if (isJust $ t_audioChannels          track) || 
             (isJust $ t_audioSamplingFrequency track) then  Just audioElement else Nothing
         ]
-    videoElement = MatroskaElement EE_Video Nothing $ EC_Master $ catMaybes [ Nothing
-        ,liftM (\x -> MatroskaElement EE_PixelWidth      Nothing $ EC_Unsigned  x) $ t_videoPixelWidth track
-        ,liftM (\x -> MatroskaElement EE_PixelHeight     Nothing $ EC_Unsigned  x) $ t_videoPixelHeight track
-        ,liftM (\x -> MatroskaElement EE_DisplayWidth    Nothing $ EC_Unsigned  x) $ t_videoDisplayWidth track
-        ,liftM (\x -> MatroskaElement EE_DisplayHeight   Nothing $ EC_Unsigned  x) $ t_videoDisplayHeight track
+    videoElement = MatroskaElement EEVideo Nothing $ EC_Master $ catMaybes [ Nothing
+        ,liftM (\x -> MatroskaElement EEPixelWidth      Nothing $ EC_Unsigned  x) $ t_videoPixelWidth track
+        ,liftM (\x -> MatroskaElement EEPixelHeight     Nothing $ EC_Unsigned  x) $ t_videoPixelHeight track
+        ,liftM (\x -> MatroskaElement EEDisplayWidth    Nothing $ EC_Unsigned  x) $ t_videoDisplayWidth track
+        ,liftM (\x -> MatroskaElement EEDisplayHeight   Nothing $ EC_Unsigned  x) $ t_videoDisplayHeight track
         ]
-    audioElement = MatroskaElement EE_Audio Nothing $ EC_Master $ catMaybes [ Nothing
-        ,liftM (\x -> MatroskaElement EE_SamplingFrequency       Nothing $ EC_Float x) $ t_audioSamplingFrequency track
-        ,liftM (\x -> MatroskaElement EE_OutputSamplingFrequency Nothing $ EC_Float x) $ t_audioOutputSamplingFrequency track
-        ,liftM (\x -> MatroskaElement EE_Channels                Nothing $ EC_Unsigned x) $ t_audioChannels track
+    audioElement = MatroskaElement EEAudio Nothing $ EC_Master $ catMaybes [ Nothing
+        ,liftM (\x -> MatroskaElement EESamplingFrequency       Nothing $ EC_Float x) $ t_audioSamplingFrequency track
+        ,liftM (\x -> MatroskaElement EEOutputSamplingFrequency Nothing $ EC_Float x) $ t_audioOutputSamplingFrequency track
+        ,liftM (\x -> MatroskaElement EEChannels                Nothing $ EC_Unsigned x) $ t_audioChannels track
         ]
     toMatroskaTimecode' x = floor (x * 1000000000.0)
 
 tracksElement :: [Track] -> MatroskaElement
-tracksElement tracks = MatroskaElement EE_Tracks Nothing $ EC_Master $ map trackElement tracks
+tracksElement tracks = MatroskaElement EETracks Nothing $ EC_Master $ map trackElement tracks
 
 infoElement :: Info -> MatroskaElement
-infoElement info = MatroskaElement EE_Info Nothing $ EC_Master $ 
-    (             MatroskaElement EE_TimecodeScale   Nothing $ EC_Unsigned     $ i_timecodeScale info) :
+infoElement info = MatroskaElement EEInfo Nothing $ EC_Master $ 
+    (             MatroskaElement EETimecodeScale   Nothing $ EC_Unsigned     $ i_timecodeScale info) :
     catMaybes [ Nothing
-    ,liftM (\x -> MatroskaElement EE_MuxingApp       Nothing $ EC_TextUtf8  x) $ i_muxingApplication info
-    ,liftM (\x -> MatroskaElement EE_WritingApp      Nothing $ EC_TextUtf8  x) $ i_writingApplication info
-    ,liftM (\x -> MatroskaElement EE_Duration        Nothing $ EC_Float     x) $ i_duration info
-    ,liftM (\x -> MatroskaElement EE_DateUTC         Nothing $ EC_Date      x) $ i_date info
-    ,liftM (\x -> MatroskaElement EE_Title           Nothing $ EC_TextUtf8  x) $ i_title info
-    ,liftM (\x -> MatroskaElement EE_SegmentUID      Nothing $ EC_Binary $ fromHex x) $ i_segmentUid info
+    ,liftM (\x -> MatroskaElement EEMuxingApp       Nothing $ EC_TextUtf8  x) $ i_muxingApplication info
+    ,liftM (\x -> MatroskaElement EEWritingApp      Nothing $ EC_TextUtf8  x) $ i_writingApplication info
+    ,liftM (\x -> MatroskaElement EEDuration        Nothing $ EC_Float     x) $ i_duration info
+    ,liftM (\x -> MatroskaElement EEDateUTC         Nothing $ EC_Date      x) $ i_date info
+    ,liftM (\x -> MatroskaElement EETitle           Nothing $ EC_TextUtf8  x) $ i_title info
+    ,liftM (\x -> MatroskaElement EESegmentUID      Nothing $ EC_Binary $ fromHex x) $ i_segmentUid info
     ]
     where
     fromHex = B.pack . fromHex' . T.unpack

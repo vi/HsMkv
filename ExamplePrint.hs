@@ -44,7 +44,7 @@ demoHandler (M.ME_Tracks tracks) = mapM_ ttt tracks
             Just x -> printf "  Language: %s\n"  $ T.unpack x
             Nothing -> return ()
 
-demoHandler (M.ME_Frame frame) = do
+demoHandler (M.ME_Frame frame) =
     printf "Frame for %d %s%s%s ts=%.06f lace=%d %s len=%d data=%s...\n" tn f_i f_d f_k ts lace dur len bufstr
         where
         tn   =           M.f_trackNumber frame
@@ -67,7 +67,7 @@ demoHandler _ = return ()
 main :: IO ()
 main = do
     contents <- B.hGetContents System.IO.stdin
-    mkvevents <- return $ M.parseMkv contents
+    let mkvevents = M.parseMkv contents
     mapM_ demoHandler mkvevents
 
 -- s2b x = B.pack $ map (fromIntegral . ord) x
