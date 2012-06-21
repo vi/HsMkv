@@ -21,13 +21,13 @@ import Codec.HsMkv.MkvTabular
 -- Description of some events
 
 data Info = Info {
-     iTimecodeScale :: Int64
-    ,iMuxingApplication :: Maybe T.Text
-    ,iWritingApplication :: Maybe T.Text
-    ,iDuration :: Maybe Double
-    ,iDate :: Maybe Double
-    ,iSegmentUid :: Maybe T.Text -- hex encoded
-    ,iTitle :: Maybe T.Text
+     iTimecodeScale         :: Int64
+    ,iMuxingApplication     :: Maybe T.Text
+    ,iWritingApplication    :: Maybe T.Text
+    ,iDuration              :: Maybe Double
+    ,iDate                  :: Maybe Double
+    ,iSegmentUid            :: Maybe T.Text -- hex encoded
+    ,iTitle                 :: Maybe T.Text
 } deriving (Show, Eq, Read)
 
 blankInfo :: Info
@@ -48,15 +48,15 @@ data TrackType =
 
 
 data Track = Track {
-      tType :: TrackType
-    , tNumber :: Int64
-    , tCodecId :: T.Text
+      tType         :: TrackType
+    , tNumber       :: Int64
+    , tCodecId      :: T.Text
 
-    , tUID :: Maybe Int64
-    , tMinCache :: Maybe Int64
+    , tUID          :: Maybe Int64
+    , tMinCache     :: Maybe Int64
     , tCodecPrivate :: Maybe B.ByteString
     , tDefaultDuration :: Maybe Double
-    , tLanguage :: Maybe T.Text
+    , tLanguage     :: Maybe T.Text
     , tVideoPixelWidth :: Maybe Int64
     , tVideoPixelHeight :: Maybe Int64
     , tVideoDisplayWidth :: Maybe Int64
