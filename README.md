@@ -37,9 +37,11 @@ Included examples:
 
 * ExamplePrint - read matroska file and print info, tracks and frames
 * ExampleTransmux - read matroska file and write it
-* ExampleUdpRecv - receive UDP packets and write them as frames to matroska file (with timecodes)
-* ExampleUdpSend - read frames from matroska file and send it as UDP packets, honouring timecodes
+* ExampleUdpRecv - receive UDP packets and write them as frames to matroska file (with timecodes), like in [udp2mkv](http://vi-server.org/pub/mkv2udp.c)
+* ExampleUdpSend - read frames from matroska file and send it as UDP packets, honouring timecodes, like in [mkv2udp](http://vi-server.org/pub/udp2mkv.c)
 * examples.hs - bundle all example above in one executable
+
+There are compiled versions "examples.hs" for [linux](http://vi-server.org/pub/HsMkv) and [windows](http://vi-server.org/pub/HsMkv.exe).
 
 
 Python version of demuxer and Matroska XML tools: https://github.com/vi/mkvparse
