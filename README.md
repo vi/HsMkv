@@ -7,13 +7,13 @@ The same list of events can be conveted back to ByteString using MkvGen.writeMkv
     data MatroskaEvent = ME_Tracks ... | ME_Info .. | ME_Frame Frame | ...
 
     data Frame = Frame {
-        f_trackNumber :: Integer,
-        f_timeCode :: Double,
-        f_data :: [B.ByteString],  -- laced sub-frames
-        f_duration :: Maybe Double,
-        f_invisible :: Bool,
-        f_discardable :: Bool,
-        f_keyframe :: Bool
+        fTrackNumber :: Integer,
+        fTimeCode :: Double,
+        fData :: [B.ByteString],  -- laced subframes
+        fDuration :: Maybe Double,
+        fInvisible :: Bool,
+        fDiscardable :: Bool,
+        fKeyframe :: Bool
     } deriving (Show)
     
     -- See ExamplePrint.hs for more complete example
@@ -37,8 +37,8 @@ Included examples:
 
 * ExamplePrint - read matroska file and print info, tracks and frames
 * ExampleTransmux - read matroska file and write it
-* ExampleUdpRecv - receive UDP packets and write them as frames to matroska file (with timecodes), like in [udp2mkv](http://vi-server.org/pub/mkv2udp.c)
-* ExampleUdpSend - read frames from matroska file and send it as UDP packets, honouring timecodes, like in [mkv2udp](http://vi-server.org/pub/udp2mkv.c)
+* ExampleUdpRecv - receive UDP packets and write them as frames to matroska file (with timecodes), like in [udp2mkv](http://vi-server.org/pub/udp2mkv.c)
+* ExampleUdpSend - read frames from matroska file and send it as UDP packets, honouring timecodes, like in [mkv2udp](http://vi-server.org/pub/mkv2udp.c)
 * examples.hs - bundle all example above in one executable
 
 There are compiled versions "examples.hs" for [linux](http://vi-server.org/pub/HsMkv) and [windows](http://vi-server.org/pub/HsMkv.exe).
