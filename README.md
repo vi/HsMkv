@@ -29,8 +29,8 @@ Supported features:
 Not supported features:
 
 *  track timecode scale multiplier
-*  seeking, cues, chapters
-*  ContentEncoding
+*  seeking (with index), cues, chapters
+*  ContentEncoding (except of "header removal")
 *  Access to various parameters of Track or Info (can be easily added probably)
 
 Included examples:
