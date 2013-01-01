@@ -33,6 +33,8 @@ import Data.Maybe
 import Control.Monad
 import Data.Int
 
+import qualified Data.Map as Map
+
 import Codec.HsMkv.MkvTabular
 import Codec.HsMkv.Model
 
@@ -43,6 +45,7 @@ data ParserState = ParserState {
     ,psMode :: ParserMode
     ,psElement :: Maybe MatroskaElement
     ,psTimecode :: Int64
+    ,psTracks :: Map.Map Int64 Track
 } deriving (Show)
 
 data ParserMode = ReadEBML | HandleEBML deriving Show
@@ -325,7 +328,7 @@ parseMkv1 state = result $ psMode state
         
 
     handle_tracks :: (MatroskaEvent, ParserState)
-    handle_tracks = (METracks tracks, state)
+    handle_tracks = (METracks tracks, state{psTracks=new_tracks_map})
         where
         entries = ebmlChildren $ fromJust $ psElement state
         handle_track_entry :: Track -> MatroskaElement -> Track
@@ -356,6 +359,20 @@ parseMkv1 state = result $ psMode state
                     = j{tAudioChannels                = Just d}
                 hte2_audio j _ = j
             hte2 EETrackType (ECUnsigned t) = i{tType = interpret_tt t}
+            hte2 EEContentEncodings (
+                ECMaster [MatroskaElement EEContentEncoding _ (
+                    ECMaster [MatroskaElement EEContentCompression _ (
+                        ECMaster t
+                    )]
+                )]) = foldl' hte2_compression i t
+                where
+                hte2_compression j (MatroskaElement EEContentCompAlgo _ (ECUnsigned 3))
+                    = j
+                hte2_compression j (MatroskaElement EEContentCompAlgo _ (ECUnsigned _))
+                    = error "Only 'header removal' compression supported"
+                hte2_compression j (MatroskaElement EEContentCompSettings _ (ECBinary pref))
+                    = j{tHeaderCompressionPrefix = Just pref}
+            hte2 EEContentEncodings _ = error "This ContentEncoding is not supported"
             hte2 _ _ = i
         interpret_tt 1 = TTVideo
         interpret_tt 2 = TTAudio
@@ -365,30 +382,16 @@ parseMkv1 state = result $ psMode state
         interpret_tt 0x12 = TTButton
         interpret_tt 0x20 = TTControl
         interpret_tt x = TTUnknown x
-        initial_track = Track {
-             tNumber = -1
-            ,tType = TTUnknown $ -1
-            ,tCodecId = T.empty
-
-            ,tUID = Nothing
-            ,tCodecPrivate = Nothing
-            ,tDefaultDuration = Nothing
-            ,tMinCache = Nothing
-            ,tLanguage = Nothing
-            ,tVideoPixelWidth = Nothing
-            ,tVideoPixelHeight = Nothing
-            ,tVideoDisplayWidth = Nothing
-            ,tVideoDisplayHeight = Nothing
-            ,tAudioSamplingFrequency = Nothing
-            ,tAudioOutputSamplingFrequency = Nothing
-            ,tAudioChannels = Nothing
-            }
+        initial_track = blankTrack
         handle_one_track :: MatroskaElement -> Track
         handle_one_track (MatroskaElement _ _ (ECMaster x)) =
             foldl' handle_track_entry initial_track x  
         handle_one_track _ = initial_track -- hack to prevent errors on invalid files
 
         tracks = map handle_one_track entries
+        
+        this_tracks_map = Map.fromList $ map (\track -> (tNumber track, track)) tracks
+        new_tracks_map = Map.union this_tracks_map  (psTracks state)
 
 
     handle_simpleBlock :: (MatroskaEvent, ParserState)
@@ -431,8 +434,12 @@ parseMkv1 state = result $ psMode state
                 0x04 -> parseLacing FixedSizeLacing rest3
                 0x06 -> parseLacing EbmlLacing rest3
                 _    -> error "Improbable lacing flags"
-
-
+            contents' = case Map.lookup track_number (psTracks state) of
+                Nothing -> contents
+                Just (t) -> case tHeaderCompressionPrefix t of
+                    Nothing -> contents
+                    Just prfx -> map (\b -> B.concat [prfx,b]) contents
+            
             tscale           = psTimecodeScale state
             cluster_timecode = psTimecode state
             timecode = cluster_timecode + rel_timecode
@@ -445,7 +452,7 @@ parseMkv1 state = result $ psMode state
                  fTrackNumber = track_number
                 ,fTimeCode = timecodeSeconds
                 ,fDuration = liftM timecodeToSeconds  dur
-                ,fData = contents
+                ,fData = contents'
                 ,fDiscardable = flag_discardable
                 ,fKeyframe = flag_keyframe
                 ,fInvisible = flag_invisible
@@ -475,6 +482,7 @@ parseMkv input = events
         ,psMode           = ReadEBML
         ,psElement        = Nothing
         ,psTimecode       = 0
+        ,psTracks         = Map.empty
         }
     events = unfoldr parseMkv1 initial_state
     

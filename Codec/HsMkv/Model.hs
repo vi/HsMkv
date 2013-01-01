@@ -64,11 +64,12 @@ data Track = Track {
     , tAudioSamplingFrequency :: Maybe Double
     , tAudioOutputSamplingFrequency :: Maybe Double
     , tAudioChannels :: Maybe Int64
+    , tHeaderCompressionPrefix :: Maybe B.ByteString
     } deriving (Show, Eq, Read)
 
 blankTrack :: Track
 blankTrack = Track (TTUnknown (-1)) (-1) T.empty Nothing Nothing Nothing Nothing 
-    Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing
+    Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing
 
 data Frame = Frame {
      fTrackNumber :: Int64
