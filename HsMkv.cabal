@@ -1,7 +1,7 @@
 name:                HsMkv
 version:             0.1.0.0
 synopsis:            Simple matroska (mkv) demuxer and muxer written in Haskell
-homepage:            /home/vi/home/wine/.wine/dosdevices/c:/windows/profiles/wine/Application Data
+homepage:            https://github.com/vi/HsMkv/
 license:             MIT
 author:              Vitaly "_Vi" Shukela
 maintainer:          vi0oss@gmail.com
@@ -11,7 +11,7 @@ cabal-version:       >=1.8
 extra-source-files:  Test.hs ExampleTransmux.hs ExamplePrint.hs ExampleUdpSend.hs ExampleUdpRecv.hs examples.hs
 library
   exposed-modules:     Codec.HsMkv.MkvParse, Codec.HsMkv.MkvTabular, Codec.HsMkv.MkvGen, Codec.HsMkv.Model
-  build-depends:       base ==4.5.*, bytestring ==0.9.*, data-binary-ieee754 ==0.4.*, text ==0.11.*
+  build-depends:       base ==4.5.*, bytestring ==0.9.*, data-binary-ieee754 ==0.4.*, text ==0.11.*, containers ==0.4.*
 
 source-repository head
   type:              git
