@@ -140,7 +140,7 @@ rawFrame rel_timecode additional_flags track buffers = B.concat [
     ,B.pack lacing
     ,B.concat buffers]
     where
-    rel_timecode' = if rel_timecode < 0
+    rel_timecode' = if rel_timecode >= 0
         then rel_timecode
         else rel_timecode + 0x8000
     flags_xiph = bit 1
