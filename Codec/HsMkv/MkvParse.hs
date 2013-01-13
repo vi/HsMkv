@@ -391,7 +391,7 @@ parseMkv1 state = result $ psMode state
         tracks = map handle_one_track entries
         
         this_tracks_map = Map.fromList $ map (\track -> (tNumber track, track)) tracks
-        new_tracks_map = Map.union this_tracks_map  (psTracks state)
+        new_tracks_map = this_tracks_map  `Map.union`  psTracks state
 
 
     handle_simpleBlock :: (MatroskaEvent, ParserState)
@@ -436,7 +436,7 @@ parseMkv1 state = result $ psMode state
                 _    -> error "Improbable lacing flags"
             contents' = case Map.lookup track_number (psTracks state) of
                 Nothing -> contents
-                Just (t) -> case tHeaderCompressionPrefix t of
+                Just t -> case tHeaderCompressionPrefix t of
                     Nothing -> contents
                     Just prfx -> map (\b -> B.concat [prfx,b]) contents
             
