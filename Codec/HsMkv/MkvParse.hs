@@ -53,7 +53,7 @@ data ParserMode = ReadEBML | HandleEBML deriving Show
 
 -- Note: "do" blocks here are for Maybe, not for IO
 
-getMajorBit :: (Bits a) => a -> Maybe Int
+getMajorBit :: (Bits a, Num a) => a -> Maybe Int
 getMajorBit x
     | x == 0                 = Nothing
     | (x .&. 0x80) == 0x80   = Just 0
