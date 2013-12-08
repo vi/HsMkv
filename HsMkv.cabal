@@ -11,7 +11,7 @@ cabal-version:       >=1.8
 extra-source-files:  Test.hs ExampleTransmux.hs ExamplePrint.hs ExampleUdpSend.hs ExampleUdpRecv.hs examples.hs
 library
   exposed-modules:     Codec.HsMkv.MkvParse, Codec.HsMkv.MkvTabular, Codec.HsMkv.MkvGen, Codec.HsMkv.Model
-  build-depends:       base ==4.5.*, bytestring ==0.9.*, data-binary-ieee754 ==0.4.*, text ==0.11.*, containers ==0.4.*
+  build-depends:       base >= 4.5 , bytestring >= 0.9, data-binary-ieee754 >= 0.4, text >= 0.11, containers >= 0.4
 
 source-repository head
   type:              git
