@@ -128,7 +128,8 @@ ebmlHeader = MatroskaElement EEEBML Nothing $ ECMaster [
 matroskaHeader :: B.ByteString
 matroskaHeader = B.concat [
     writeMatroskaElement ebmlHeader,
-    writeMatroskaElement $ MatroskaElement EESegment (Just (-1)) $ ECBinary B.empty
+    writeMatroskaElement $ MatroskaElement EESegment (Just (-1)) $ ECBinary B.empty,
+    writeMatroskaElement $ MatroskaElement EEVoid (Just 128) $ ECBinary $ B.pack $ take 128 $ cycle [0]
     ]
 
 
