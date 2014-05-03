@@ -348,6 +348,7 @@ parseMkv1 state = result $ psMode state
                 hte2_video j (MatroskaElement EEPixelHeight   _ (ECUnsigned d)) = j{tVideoPixelHeight = Just d}
                 hte2_video j (MatroskaElement EEDisplayWidth  _ (ECUnsigned d)) = j{tVideoDisplayWidth = Just d}
                 hte2_video j (MatroskaElement EEDisplayHeight _ (ECUnsigned d)) = j{tVideoDisplayHeight = Just d}
+                hte2_video j (MatroskaElement EEColourSpace   _ (ECBinary d)) = j{tVideoColourSpace = Just d}
                 hte2_video j _ = j
             hte2 EEAudio (ECMaster t) = foldl' hte2_audio i t
                 where

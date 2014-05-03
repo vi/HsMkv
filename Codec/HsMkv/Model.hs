@@ -61,6 +61,7 @@ data Track = Track {
     , tVideoPixelHeight :: Maybe Int64
     , tVideoDisplayWidth :: Maybe Int64
     , tVideoDisplayHeight :: Maybe Int64
+    , tVideoColourSpace :: Maybe B.ByteString
     , tAudioSamplingFrequency :: Maybe Double
     , tAudioOutputSamplingFrequency :: Maybe Double
     , tAudioChannels :: Maybe Int64
@@ -69,7 +70,7 @@ data Track = Track {
 
 blankTrack :: Track
 blankTrack = Track (TTUnknown (-1)) (-1) T.empty Nothing Nothing Nothing Nothing 
-    Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing
+    Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing
 
 data Frame = Frame {
      fTrackNumber :: Int64

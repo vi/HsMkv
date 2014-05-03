@@ -210,6 +210,7 @@ trackElement track =
         ,liftM (MatroskaElement EEPixelHeight     Nothing . ECUnsigned) $ tVideoPixelHeight track
         ,liftM (MatroskaElement EEDisplayWidth    Nothing . ECUnsigned) $ tVideoDisplayWidth track
         ,liftM (MatroskaElement EEDisplayHeight   Nothing . ECUnsigned) $ tVideoDisplayHeight track
+        ,liftM (MatroskaElement EEColourSpace     Nothing . ECBinary  ) $ tVideoColourSpace track
         ]
     audioElement = MatroskaElement EEAudio Nothing $ ECMaster $ catMaybes [ Nothing
         ,liftM (MatroskaElement EESamplingFrequency       Nothing . ECFloat) $ tAudioSamplingFrequency track
