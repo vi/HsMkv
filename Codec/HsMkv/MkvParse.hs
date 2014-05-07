@@ -1,5 +1,8 @@
 module Codec.HsMkv.MkvParse (
      parseMkv
+    ,parseMkv1
+    ,initialParserState
+    ,ParserState
     ,readEbmlNumber
     ,readBigEndianNumber
     ,readXiphLacingNumber
