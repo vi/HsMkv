@@ -40,13 +40,21 @@ import Codec.HsMkv.Model
 
 
 data ParserState = ParserState {
-     psBuffer :: B.ByteString
-    ,psTimecodeScale :: Int64
+     psTimecodeScale :: Int64
     ,psMode :: ParserMode
     ,psElement :: Maybe MatroskaElement
     ,psTimecode :: Int64
     ,psTracks :: Map.Map Int64 Track
 } deriving (Show)
+    
+initialParserState :: ParserState
+initialParserState = ParserState { 
+         psTimecodeScale  = 1000000
+        ,psMode           = ReadEBML
+        ,psElement        = Nothing
+        ,psTimecode       = 0
+        ,psTracks         = Map.empty
+        }
 
 data ParserMode = ReadEBML | HandleEBML deriving Show
 
@@ -272,23 +280,22 @@ parseLacing ltype buf = result
     result = subframes lengths rest2 (num_laced_frames-1)
 
 
-parseMkv1 :: ParserState -> Maybe (MatroskaEvent, ParserState)
-parseMkv1 state = result $ psMode state
+parseMkv1 :: (B.ByteString, ParserState) -> Maybe (MatroskaEvent, (B.ByteString, ParserState))
+parseMkv1 (buffer, state) = result $ psMode state
     where
-    maybe_element = tryParseEbml1 $ psBuffer state
+    maybe_element = tryParseEbml1 $ buffer
     result ReadEBML = case maybe_element of
-        Nothing -> if B.empty == psBuffer state
+        Nothing -> if B.empty == buffer
             then Nothing -- really eof of file
             else -- need to resync 
-                Just (MEResync, state {psBuffer = resync $ psBuffer state})
+                Just (MEResync, (resync buffer, state))
         Just (element, tail1) ->
             if not $ isThisTopLevelElementValid (meClass element) (meSize element)
-                then Just (MEResync, state {psBuffer = resync $ psBuffer state})
-                else Just (MEEbmlElement element, state {
+                then Just (MEResync, (resync buffer, state))
+                else Just (MEEbmlElement element, (tail1, state {
                     psElement = Just element,
-                    psBuffer  = tail1, 
-                    psMode    = HandleEBML })
-    result HandleEBML = Just (msg, new_state {psElement = Nothing, psMode = ReadEBML})
+                    psMode    = HandleEBML }))
+    result HandleEBML = Just (msg, (buffer, new_state {psElement = Nothing, psMode = ReadEBML}))
         where
         element = fromJust $ psElement state
         klass =  meClass element
@@ -475,15 +482,5 @@ parseMkv1 state = result $ psMode state
 -- The main module function.
 
 parseMkv :: B.ByteString -> [MatroskaEvent]
-parseMkv input = events
-    where
-    initial_state = ParserState { 
-         psBuffer         = input
-        ,psTimecodeScale  = 1000000
-        ,psMode           = ReadEBML
-        ,psElement        = Nothing
-        ,psTimecode       = 0
-        ,psTracks         = Map.empty
-        }
-    events = unfoldr parseMkv1 initial_state
+parseMkv input = unfoldr parseMkv1 (input, initialParserState)
     
