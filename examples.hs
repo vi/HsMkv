@@ -5,6 +5,7 @@ import qualified ExampleUdpSend
 import qualified ExampleTransmux
 import qualified ExamplePrint
 import qualified ExampleSetpts
+import qualified ExampleDump
 
 import Text.Printf
 import System.Environment (getArgs)
@@ -19,6 +20,7 @@ main = do
             printf "   print    - read matroska file and print some information from it\n"
             printf "   transmux - read matroska file and write it\n"
             printf "   setpts   - like transmux, but also fiddle with timecodes\n"
+            printf "   dump     - dump binary content of all frames to stdout\n"
         else let
             (head1:tail1) = args
             in
@@ -28,3 +30,4 @@ main = do
                 "print" -> ExamplePrint.main
                 "transmux" -> ExampleTransmux.main
                 "setpts" -> ExampleSetpts.mainSetpts tail1
+                "dump" -> ExampleDump.main
