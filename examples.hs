@@ -3,6 +3,7 @@ module Main where
 import qualified ExampleUdpRecv
 import qualified ExampleUdpSend
 import qualified ExampleTransmux
+import qualified ExampleFilterKeyframes
 import qualified ExamplePrint
 import qualified ExampleSetpts
 import qualified ExampleDump
@@ -19,6 +20,7 @@ main = do
             printf "   udp_recv - receive UDP messages and write them to matroska file\n"
             printf "   print    - read matroska file and print some information from it\n"
             printf "   transmux - read matroska file and write it\n"
+            printf "   keysonly - read matroska file and write only key frames\n"
             printf "   setpts   - like transmux, but also fiddle with timecodes\n"
             printf "   dump     - dump binary content of all frames to stdout\n"
         else let
@@ -29,5 +31,6 @@ main = do
                 "udp_recv" -> ExampleUdpRecv.mainUdpRecv tail1
                 "print" -> ExamplePrint.main
                 "transmux" -> ExampleTransmux.main
+                "keysonly" -> ExampleFilterKeyframes.main
                 "setpts" -> ExampleSetpts.mainSetpts tail1
                 "dump" -> ExampleDump.main
