@@ -6,7 +6,9 @@ import qualified ExampleTransmux
 import qualified ExampleFilterKeyframes
 import qualified ExamplePrint
 import qualified ExampleSetpts
+import qualified ExamplePrintpts
 import qualified ExampleDump
+import qualified ExamplePtsFromFile
 
 import Text.Printf
 import System.Environment (getArgs)
@@ -22,6 +24,8 @@ main = do
             printf "   transmux - read matroska file and write it\n"
             printf "   keysonly - read matroska file and write only key frames\n"
             printf "   setpts   - like transmux, but also fiddle with timecodes\n"
+            printf "   printpts - dump just all pts to stdout"
+            printf "   ptsfromfile - restore pts of all frames from file\n"
             printf "   dump     - dump binary content of all frames to stdout\n"
         else let
             (head1:tail1) = args
@@ -33,4 +37,6 @@ main = do
                 "transmux" -> ExampleTransmux.main
                 "keysonly" -> ExampleFilterKeyframes.main
                 "setpts" -> ExampleSetpts.mainSetpts tail1
+                "printpts" -> ExamplePrintpts.mainPrintpts tail1
+                "ptsfromfile" -> ExamplePtsFromFile.mainPtsFromFile tail1
                 "dump" -> ExampleDump.main
