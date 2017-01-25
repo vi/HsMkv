@@ -1,4 +1,6 @@
 mkvuser
+*.html
+*.scc
 MkvExample
 Test
 example_print
