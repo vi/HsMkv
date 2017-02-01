@@ -247,6 +247,38 @@ data ElementClass =
     EETagDefault |
     EETagString |
     EETagBinary |
+    EEAlphaMode |
+    EEBitsPerChannel |
+    EECbSubsamplingHorz |
+    EECbSubsamplingVert |
+    EEChapterStringUID |
+    EEChromaSitingHorz |
+    EEChromaSitingVert |
+    EEChromaSubsamplingHorz |
+    EEChromaSubsamplingVert |
+    EECodecDelay |
+    EEColour |
+    EEDefaultDecodedFieldDuration |
+    EEDiscardPadding |
+    EEFieldOrder |
+    EELuminanceMax |
+    EELuminanceMin |
+    EEMasteringMetadata |
+    EEMatrixCoefficients |
+    EEMaxCLL |
+    EEMaxFALL |
+    EEPrimaries |
+    EEPrimaryBChromaticityX |
+    EEPrimaryBChromaticityY |
+    EEPrimaryGChromaticityX |
+    EEPrimaryGChromaticityY |
+    EEPrimaryRChromaticityX |
+    EEPrimaryRChromaticityY |
+    EERange |
+    EESeekPreRoll |
+    EETransferCharacteristics |
+    EEWhitePointChromaticityX |
+    EEWhitePointChromaticityY |
     EEUnknown EbmlElementID
     deriving (Show, Eq, Ord, Read)
 
@@ -484,4 +516,36 @@ elementInformation = [
     ,(EETagDefault                  , 0x00004484, ETUnsigned     )
     ,(EETagString                   , 0x00004487, ETTextUtf8     )
     ,(EETagBinary                   , 0x00004485, ETBinary       )
+    ,(EEAlphaMode                   , 0x000053C0, ETUnsigned     )
+    ,(EEBitsPerChannel              , 0x000055B2, ETUnsigned     )
+    ,(EECbSubsamplingHorz           , 0x000055B5, ETUnsigned     )
+    ,(EECbSubsamplingVert           , 0x000055B6, ETUnsigned     )
+    ,(EEChapterStringUID            , 0x00005654, ETTextUtf8     )
+    ,(EEChromaSitingHorz            , 0x000055B7, ETUnsigned     )
+    ,(EEChromaSitingVert            , 0x000055B8, ETUnsigned     )
+    ,(EEChromaSubsamplingHorz       , 0x000055B3, ETUnsigned     )
+    ,(EEChromaSubsamplingVert       , 0x000055B4, ETUnsigned     )
+    ,(EECodecDelay                  , 0x000056AA, ETUnsigned     )
+    ,(EEColour                      , 0x000055B0, ETMaster       )
+    ,(EEDefaultDecodedFieldDuration , 0x00234E7A, ETUnsigned     )
+    ,(EEDiscardPadding              , 0x000075A2, ETSigned       )
+    ,(EEFieldOrder                  , 0x0000009D, ETUnsigned     )
+    ,(EELuminanceMax                , 0x000055D9, ETFloat        )
+    ,(EELuminanceMin                , 0x000055DA, ETFloat        )
+    ,(EEMasteringMetadata           , 0x000055D0, ETMaster       )
+    ,(EEMatrixCoefficients          , 0x000055B1, ETUnsigned     )
+    ,(EEMaxCLL                      , 0x000055BC, ETUnsigned     )
+    ,(EEMaxFALL                     , 0x000055BD, ETUnsigned     )
+    ,(EEPrimaries                   , 0x000055BB, ETUnsigned     )
+    ,(EEPrimaryBChromaticityX       , 0x000055D5, ETFloat        )
+    ,(EEPrimaryBChromaticityY       , 0x000055D6, ETFloat        )
+    ,(EEPrimaryGChromaticityX       , 0x000055D3, ETFloat        )
+    ,(EEPrimaryGChromaticityY       , 0x000055D4, ETFloat        )
+    ,(EEPrimaryRChromaticityX       , 0x000055D1, ETFloat        )
+    ,(EEPrimaryRChromaticityY       , 0x000055D2, ETFloat        )
+    ,(EERange                       , 0x000055B9, ETUnsigned     )
+    ,(EESeekPreRoll                 , 0x000056BB, ETUnsigned     )
+    ,(EETransferCharacteristics     , 0x000055BA, ETUnsigned     )
+    ,(EEWhitePointChromaticityX     , 0x000055D7, ETFloat        )
+    ,(EEWhitePointChromaticityY     , 0x000055D8, ETFloat        )
     ]

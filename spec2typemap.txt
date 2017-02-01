@@ -1,0 +1,6 @@
+u,ETUnsigned
+m,ETMaster
+f,ETFloat
+i,ETSigned
+8,ETTextUtf8
+s,ETTextAscii
